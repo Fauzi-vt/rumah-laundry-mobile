@@ -1,0 +1,14 @@
+{
+  // ── Flutter: Auto hot-reload setiap kali file Dart disimpan ──────────────
+  "dart.flutterHotReloadOnSave": "always",
+
+  // ── Format otomatis saat save ─────────────────────────────────────────────
+  "editor.formatOnSave": true,
+  "[dart]": {
+    "editor.formatOnSave": true,
+    "editor.defaultFormatter": "Dart-Code.dart-code"
+  },
+
+  // ── Hilangkan jeda sebelum reload ─────────────────────────────────────────
+  "dart.hotReloadProgress": "notification"
+}
