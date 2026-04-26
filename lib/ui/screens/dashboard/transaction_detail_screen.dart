@@ -1,0 +1,767 @@
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:url_launcher/url_launcher.dart';
+import '../../../core/app_colors.dart';
+import '../../../data/models/transaction_model.dart';
+
+class TransactionDetailScreen extends StatefulWidget {
+  final TransactionModel transaction;
+  const TransactionDetailScreen({super.key, required this.transaction});
+
+  @override
+  State<TransactionDetailScreen> createState() =>
+      _TransactionDetailScreenState();
+}
+
+class _TransactionDetailScreenState extends State<TransactionDetailScreen>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _ctrl;
+  late Animation<double> _fadeAnim;
+  late Animation<Offset> _slideAnim;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 500));
+    _fadeAnim =
+        CurvedAnimation(parent: _ctrl, curve: Curves.easeOut);
+    _slideAnim = Tween<Offset>(
+      begin: const Offset(0, 0.08),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOutCubic));
+    _ctrl.forward();
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final trx = widget.transaction;
+    final sc  = AppColors.statusColor(trx.status);
+    final sl  = AppColors.statusLabel(trx.status);
+
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      body: FadeTransition(
+        opacity: _fadeAnim,
+        child: SlideTransition(
+          position: _slideAnim,
+          child: CustomScrollView(
+            slivers: [
+              // ── App Bar ───────────────────────────────────────────────
+              SliverAppBar(
+                expandedHeight: 200,
+                pinned: true,
+                backgroundColor: AppColors.primaryGreen,
+                foregroundColor: Colors.white,
+                elevation: 0,
+                flexibleSpace: FlexibleSpaceBar(
+                  background: _buildSuccessBanner(),
+                ),
+                title: Text(
+                  'Detail Pesanan',
+                  style: GoogleFonts.poppins(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 16,
+                    color: Colors.white,
+                  ),
+                ),
+                leading: IconButton(
+                  icon: const Icon(Icons.arrow_back_ios_new_rounded),
+                  onPressed: () => Navigator.of(context).pop(),
+                ),
+                actions: [
+                  IconButton(
+                    icon: const Icon(Icons.copy_rounded, size: 20),
+                    tooltip: 'Salin Invoice',
+                    onPressed: () {
+                      Clipboard.setData(
+                          ClipboardData(text: trx.invoiceCode));
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Invoice disalin!',
+                              style: GoogleFonts.poppins(
+                                  color: Colors.white)),
+                          backgroundColor: AppColors.primaryGreen,
+                          behavior: SnackBarBehavior.floating,
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12)),
+                          margin: const EdgeInsets.all(16),
+                          duration: const Duration(seconds: 2),
+                        ),
+                      );
+                    },
+                  ),
+                ],
+              ),
+
+              // ── Invoice Info ──────────────────────────────────────────
+              SliverToBoxAdapter(
+                child: _buildSection(
+                  child: _buildInvoiceInfo(trx, sc, sl),
+                ),
+              ),
+
+              // ── Progress Tracker ──────────────────────────────────────
+              SliverToBoxAdapter(
+                child: _buildSection(
+                  title: 'Status Pesanan',
+                  child: _buildProgressTracker(trx.status),
+                ),
+              ),
+
+              // ── Delivery & Payment Info ───────────────────────────────
+              SliverToBoxAdapter(
+                child: _buildSection(
+                  title: 'Informasi Pengiriman & Pembayaran',
+                  child: _buildDeliveryInfo(trx),
+                ),
+              ),
+
+              // ── Order Items ───────────────────────────────────────────
+              SliverToBoxAdapter(
+                child: _buildSection(
+                  title: 'Daftar Layanan',
+                  child: _buildItemList(trx),
+                ),
+              ),
+
+              // ── Payment Summary ───────────────────────────────────────
+              SliverToBoxAdapter(
+                child: _buildSection(
+                  title: 'Ringkasan Pembayaran',
+                  child: _buildPaymentSummary(trx),
+                ),
+              ),
+
+              // ── Info note ─────────────────────────────────────────────
+              SliverToBoxAdapter(child: _buildInfoNote(trx)),
+
+              const SliverToBoxAdapter(child: SizedBox(height: 80)),
+            ],
+          ),
+        ),
+      ),
+
+      // ── Floating Action Button (WhatsApp) ─────────────────────────────
+      floatingActionButton: _buildWhatsAppFab(),
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+
+      // ── Bottom button ─────────────────────────────────────────────────
+      bottomNavigationBar: _buildBottomBar(context),
+    );
+  }
+
+  // ── Success Banner ────────────────────────────────────────────────────────
+  Widget _buildSuccessBanner() {
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [AppColors.primaryGreen, AppColors.primaryMid],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+      ),
+      child: SafeArea(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const SizedBox(height: 48),
+            Container(
+              width: 64,
+              height: 64,
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.2),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.check_circle_rounded,
+                  color: Colors.white, size: 40),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Pesanan Berhasil Dibuat!',
+              style: GoogleFonts.poppins(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            Text(
+              'Silakan lakukan pembayaran di kasir',
+              style: GoogleFonts.poppins(
+                color: Colors.white70,
+                fontSize: 12,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── Invoice Info ──────────────────────────────────────────────────────────
+  Widget _buildInvoiceInfo(
+      TransactionModel trx, Color sc, String sl) {
+    final date =
+        '${trx.createdAt.day.toString().padLeft(2, '0')}/'
+        '${trx.createdAt.month.toString().padLeft(2, '0')}/'
+        '${trx.createdAt.year}  '
+        '${trx.createdAt.hour.toString().padLeft(2, '0')}:'
+        '${trx.createdAt.minute.toString().padLeft(2, '0')}';
+
+    return Column(
+      children: [
+        _InfoRow(
+          label: 'No. Invoice',
+          value: trx.invoiceCode,
+          valueStyle: GoogleFonts.poppins(
+            fontSize: 14,
+            fontWeight: FontWeight.w700,
+            color: AppColors.textPrimary,
+            letterSpacing: 0.5,
+          ),
+        ),
+        const _Divider(),
+        _InfoRow(
+          label: 'Tanggal',
+          value: date,
+        ),
+        const _Divider(),
+        _InfoRow(
+          label: 'Status',
+          valueWidget: Container(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: sc.withOpacity(0.12),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
+              sl,
+              style: GoogleFonts.poppins(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: sc,
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ── Progress Tracker ──────────────────────────────────────────────────────
+  static const _steps = [
+    ('baru',    Icons.receipt_long_rounded,   'Pesanan Dibuat'),
+    ('cuci',    Icons.local_laundry_service_rounded, 'Sedang Dicuci'),
+    ('kering',  Icons.air_rounded,            'Pengeringan'),
+    ('setrika', Icons.iron_rounded,           'Penyetrikaan'),
+    ('selesai', Icons.check_circle_rounded,   'Selesai'),
+  ];
+
+  Widget _buildProgressTracker(String status) {
+    final currentIdx = _steps.indexWhere((s) => s.$1 == status.toLowerCase());
+    return Column(
+      children: List.generate(_steps.length, (i) {
+        final done    = i <= currentIdx;
+        final active  = i == currentIdx;
+        final (_, icon, label) = _steps[i];
+        final sc = done ? AppColors.primaryGreen : AppColors.cardBorder;
+
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Column(children: [
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 300),
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: done
+                      ? (active
+                          ? AppColors.primaryGreen
+                          : AppColors.primaryLight)
+                      : AppColors.cardBorder.withOpacity(0.5),
+                  shape: BoxShape.circle,
+                  border: active
+                      ? Border.all(color: AppColors.primaryGreen, width: 2.5)
+                      : null,
+                ),
+                child: Icon(
+                  icon,
+                  size: 18,
+                  color: done
+                      ? (active ? Colors.white : AppColors.primaryGreen)
+                      : AppColors.textSecondary,
+                ),
+              ),
+              if (i < _steps.length - 1)
+                Container(
+                  width: 2,
+                  height: 28,
+                  color: i < currentIdx
+                      ? AppColors.primaryGreen
+                      : AppColors.cardBorder,
+                ),
+            ]),
+            const SizedBox(width: 14),
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Text(
+                label,
+                style: GoogleFonts.poppins(
+                  fontSize: 13,
+                  fontWeight:
+                      active ? FontWeight.w700 : FontWeight.w400,
+                  color: done
+                      ? AppColors.textPrimary
+                      : AppColors.textSecondary,
+                ),
+              ),
+            ),
+            if (active) ...[
+              const SizedBox(width: 8),
+              Padding(
+                padding: const EdgeInsets.only(top: 9),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: AppColors.primaryGreen,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    'Saat ini',
+                    style: GoogleFonts.poppins(
+                        fontSize: 9,
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ),
+            ],
+          ],
+        );
+      }),
+    );
+  }
+
+  // ── Delivery & Payment Info ───────────────────────────────────────────────
+  Widget _buildDeliveryInfo(TransactionModel trx) {
+    final String delivery = (trx.deliveryType == 'bawa_sendiri') ? 'Bawa Sendiri' : 'Antar Jemput';
+    final String payment = (trx.paymentMethod == 'transfer') ? 'Transfer Bank' : 'Tunai (Cash)';
+
+    return Column(
+      children: [
+        _InfoRow(label: 'Metode Pengiriman', value: delivery),
+        const _Divider(),
+        _InfoRow(label: 'Alamat', value: trx.address ?? '-'),
+        const _Divider(),
+        _InfoRow(label: 'Nomor HP', value: trx.phone ?? '-'),
+        const _Divider(),
+        _InfoRow(label: 'Pembayaran', value: payment),
+      ],
+    );
+  }
+
+  // ── Item List ─────────────────────────────────────────────────────────────
+  Widget _buildItemList(TransactionModel trx) {
+    if (trx.details.isEmpty) {
+      return Text('Tidak ada item.',
+          style: GoogleFonts.poppins(
+              color: AppColors.textSecondary, fontSize: 13));
+    }
+    return Column(
+      children: trx.details.asMap().entries.map((entry) {
+        final i = entry.key;
+        final d = entry.value;
+        final sub = d.subtotal.toInt().toString().replaceAllMapped(
+            RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.');
+        final price = d.price.toInt().toString().replaceAllMapped(
+            RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.');
+        final qty = d.service.unit == 'kg'
+            ? '${d.quantity.toStringAsFixed(1)} ${d.service.unit}'
+            : '${d.quantity.toInt()} ${d.service.unit}';
+
+        return Column(
+          children: [
+            if (i > 0)
+              Divider(
+                  height: 20, thickness: 0.8, color: AppColors.cardBorder),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(d.service.icon,
+                    style: const TextStyle(fontSize: 24)),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        d.service.name,
+                        style: GoogleFonts.poppins(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      Text(
+                        'Rp $price × $qty',
+                        style: GoogleFonts.poppins(
+                          fontSize: 11,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Text(
+                  'Rp $sub',
+                  style: GoogleFonts.poppins(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        );
+      }).toList(),
+    );
+  }
+
+  // ── Payment Summary ───────────────────────────────────────────────────────
+  Widget _buildPaymentSummary(TransactionModel trx) {
+    final subtotal = trx.totalPrice.toInt().toString().replaceAllMapped(
+        RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.');
+    return Column(
+      children: [
+        _InfoRow(label: 'Subtotal', value: 'Rp $subtotal'),
+        const _Divider(),
+        _InfoRow(label: 'Biaya Layanan', value: 'Gratis'),
+        const _Divider(),
+        _InfoRow(
+          label: 'Total',
+          value: trx.formattedTotal,
+          valueStyle: GoogleFonts.poppins(
+            fontSize: 16,
+            fontWeight: FontWeight.w800,
+            color: AppColors.primaryGreen,
+          ),
+          labelStyle: GoogleFonts.poppins(
+            fontSize: 14,
+            fontWeight: FontWeight.w700,
+            color: AppColors.textPrimary,
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ── Info Note ─────────────────────────────────────────────────────────────
+  Widget _buildInfoNote(TransactionModel trx) {
+    if (trx.status != 'baru') return const SizedBox.shrink();
+
+    final isTransfer = trx.paymentMethod == 'transfer';
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: isTransfer ? AppColors.primaryLight : Colors.amber.shade50,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+              color: isTransfer
+                  ? AppColors.primaryMid.withOpacity(0.3)
+                  : Colors.amber.shade200),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  isTransfer
+                      ? Icons.account_balance_rounded
+                      : Icons.info_outline_rounded,
+                  color: isTransfer
+                      ? AppColors.primaryGreen
+                      : Colors.amber.shade700,
+                  size: 20,
+                ),
+                const SizedBox(width: 10),
+                Text(
+                  isTransfer
+                      ? 'Instruksi Transfer'
+                      : 'Pembayaran di Kasir',
+                  style: GoogleFonts.poppins(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: isTransfer
+                        ? AppColors.primaryGreen
+                        : Colors.amber.shade900,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            if (isTransfer) ...[
+              Text(
+                'Silakan transfer ke rekening berikut:',
+                style: GoogleFonts.poppins(
+                    fontSize: 12, color: AppColors.textPrimary),
+              ),
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppColors.cardBorder),
+                ),
+                child: Row(
+                  children: [
+                    Image.network(
+                        'https://upload.wikimedia.org/wikipedia/commons/thumb/5/5c/Bank_Central_Asia.svg/1200px-Bank_Central_Asia.svg.png',
+                        width: 40,
+                        height: 24,
+                        errorBuilder: (_, __, ___) => const Icon(Icons.account_balance)),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('1234567890',
+                              style: GoogleFonts.poppins(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.textPrimary)),
+                          Text('a.n Rumah Laundry',
+                              style: GoogleFonts.poppins(
+                                  fontSize: 11,
+                                  color: AppColors.textSecondary)),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.copy_rounded,
+                          size: 20, color: AppColors.primaryGreen),
+                      onPressed: () {
+                        Clipboard.setData(const ClipboardData(text: '1234567890'));
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Nomor rekening disalin!',
+                                style: GoogleFonts.poppins(color: Colors.white)),
+                            backgroundColor: AppColors.primaryGreen,
+                            behavior: SnackBarBehavior.floating,
+                          ),
+                        );
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () => _openWhatsApp(),
+                  icon: const Icon(Icons.upload_file_rounded, size: 18),
+                  label: Text(
+                    'Kirim Bukti Transfer via WA',
+                    style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.primaryGreen,
+                    side: const BorderSide(color: AppColors.primaryGreen),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+              ),
+            ] else ...[
+              Text(
+                'Harap lakukan pembayaran di kasir terdekat atau kepada kurir kami saat penjemputan. '
+                'Tunjukkan nomor invoice kepada petugas.',
+                style: GoogleFonts.poppins(
+                  fontSize: 12,
+                  color: Colors.amber.shade900,
+                  height: 1.5,
+                ),
+              ),
+            ]
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── WhatsApp FAB ──────────────────────────────────────────────────────────
+  Widget _buildWhatsAppFab() {
+    return FloatingActionButton.extended(
+      onPressed: _openWhatsApp,
+      backgroundColor: const Color(0xFF25D366), // WhatsApp Green
+      icon: const Icon(Icons.chat_rounded, color: Colors.white, size: 20),
+      label: Text(
+        'Chat CS',
+        style: GoogleFonts.poppins(
+            fontWeight: FontWeight.w700, color: Colors.white, fontSize: 13),
+      ),
+    );
+  }
+
+  Future<void> _openWhatsApp() async {
+    final invoice = widget.transaction.invoiceCode;
+    final message = 'Halo Admin Rumah Laundry, saya ingin konfirmasi pesanan dengan nomor invoice *$invoice*.';
+    final url = Uri.parse('https://wa.me/6281234567890?text=${Uri.encodeComponent(message)}');
+    
+    if (await canLaunchUrl(url)) {
+      await launchUrl(url, mode: LaunchMode.externalApplication);
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Tidak dapat membuka WhatsApp.',
+                style: GoogleFonts.poppins(color: Colors.white)),
+            backgroundColor: Colors.red.shade700,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
+  }
+
+  // ── Section wrapper ───────────────────────────────────────────────────────
+  Widget _buildSection({String? title, required Widget child}) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 14,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (title != null) ...[
+            Text(
+              title,
+              style: GoogleFonts.poppins(
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 14),
+          ],
+          child,
+        ],
+      ),
+    );
+  }
+
+  // ── Bottom Bar ────────────────────────────────────────────────────────────
+  Widget _buildBottomBar(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+              color: Colors.black.withOpacity(0.06),
+              blurRadius: 16,
+              offset: const Offset(0, -4))
+        ],
+      ),
+      child: SafeArea(
+        child: SizedBox(
+          height: 50,
+          child: ElevatedButton.icon(
+            icon: const Icon(Icons.home_rounded, size: 20),
+            label: Text(
+              'Kembali ke Beranda',
+              style: GoogleFonts.poppins(
+                  fontSize: 14, fontWeight: FontWeight.w700),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primaryGreen,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14)),
+            ),
+            onPressed: () {
+              // Pop semua hingga root (DashboardShell)
+              Navigator.of(context)
+                  .popUntil((route) => route.isFirst);
+            },
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ── Helper widgets ────────────────────────────────────────────────────────────
+class _InfoRow extends StatelessWidget {
+  final String      label;
+  final String?     value;
+  final Widget?     valueWidget;
+  final TextStyle?  labelStyle;
+  final TextStyle?  valueStyle;
+
+  const _InfoRow({
+    required this.label,
+    this.value,
+    this.valueWidget,
+    this.labelStyle,
+    this.valueStyle,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          label,
+          style: labelStyle ??
+              GoogleFonts.poppins(
+                  fontSize: 13, color: AppColors.textSecondary),
+        ),
+        valueWidget ??
+            Text(
+              value ?? '',
+              style: valueStyle ??
+                  GoogleFonts.poppins(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textPrimary,
+                  ),
+            ),
+      ],
+    );
+  }
+}
+
+class _Divider extends StatelessWidget {
+  const _Divider();
+  @override
+  Widget build(BuildContext context) =>
+      Divider(height: 18, thickness: 0.8, color: AppColors.cardBorder);
+}

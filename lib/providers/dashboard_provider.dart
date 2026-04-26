@@ -57,7 +57,12 @@ class DashboardProvider extends ChangeNotifier {
         ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
       _status = DashboardStatus.loaded;
     } catch (e) {
-      _error  = e.toString().replaceFirst('Exception: ', '');
+      final msg = e.toString().replaceFirst('Exception: ', '');
+      if (msg == 'UNAUTHORIZED') {
+        _error = 'Sesi telah berakhir. Silakan login kembali.';
+      } else {
+        _error = msg;
+      }
       _status = DashboardStatus.error;
     }
     notifyListeners();
@@ -67,13 +72,25 @@ class DashboardProvider extends ChangeNotifier {
 
   // ── Create Order ──────────────────────────────────────────────────────────
   /// Returns error message or null on success
-  Future<String?> createOrder(List<Map<String, dynamic>> items) async {
+  Future<String?> createOrder({
+    required List<Map<String, dynamic>> items,
+    required String address,
+    required String phone,
+    required String paymentMethod,
+    required String deliveryType,
+  }) async {
     _orderLoading = true;
     notifyListeners();
     try {
       final token = await AuthService().getToken();
       if (token == null) throw Exception('Sesi tidak ditemukan.');
-      final trx = await LaundryService(token: token).createOrder(items);
+      final trx = await LaundryService(token: token).createOrder(
+        items: items,
+        address: address,
+        phone: phone,
+        paymentMethod: paymentMethod,
+        deliveryType: deliveryType,
+      );
       _transactions = [trx, ..._transactions];
       _orderLoading = false;
       notifyListeners();

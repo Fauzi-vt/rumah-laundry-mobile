@@ -19,7 +19,7 @@ class ServiceModel {
         id:          j['id']          as int,
         name:        j['name']        as String,
         category:    j['category']    as String? ?? '',
-        price:       (j['price'] as num).toDouble(),
+        price:       double.parse(j['price'].toString()),
         unit:        j['unit']        as String? ?? 'kg',
         description: j['description'] as String?,
       );

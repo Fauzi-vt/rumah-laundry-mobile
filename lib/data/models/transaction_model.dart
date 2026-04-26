@@ -22,9 +22,9 @@ class TransactionDetailModel {
         id:        j['id']         as int,
         serviceId: j['service_id'] as int,
         service:   ServiceModel.fromJson(j['service'] as Map<String, dynamic>),
-        quantity:  (j['quantity']  as num).toDouble(),
-        price:     (j['price']     as num).toDouble(),
-        subtotal:  (j['subtotal']  as num).toDouble(),
+        quantity:  double.parse(j['quantity'].toString()),
+        price:     double.parse(j['price'].toString()),
+        subtotal:  double.parse(j['subtotal'].toString()),
       );
 }
 
@@ -34,6 +34,10 @@ class TransactionModel {
   final double       totalPrice;
   final String       status;
   final DateTime     createdAt;
+  final String?      address;
+  final String?      phone;
+  final String?      paymentMethod;
+  final String?      deliveryType;
   final List<TransactionDetailModel> details;
 
   const TransactionModel({
@@ -42,15 +46,23 @@ class TransactionModel {
     required this.totalPrice,
     required this.status,
     required this.createdAt,
+    this.address,
+    this.phone,
+    this.paymentMethod,
+    this.deliveryType,
     required this.details,
   });
 
   factory TransactionModel.fromJson(Map<String, dynamic> j) => TransactionModel(
         id:          j['id']           as int,
         invoiceCode: j['invoice_code'] as String,
-        totalPrice:  (j['total_price'] as num).toDouble(),
+        totalPrice:  double.parse(j['total_price'].toString()),
         status:      j['status']       as String,
         createdAt:   DateTime.parse(j['created_at'] as String),
+        address:     j['address'] as String?,
+        phone:       j['phone'] as String?,
+        paymentMethod: j['payment_method'] as String?,
+        deliveryType: j['delivery_type'] as String?,
         details:     (j['details'] as List? ?? [])
             .map((d) => TransactionDetailModel.fromJson(d as Map<String, dynamic>))
             .toList(),

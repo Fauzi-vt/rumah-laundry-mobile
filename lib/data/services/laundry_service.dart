@@ -23,6 +23,7 @@ class LaundryService {
       final list = body['data'] as List? ?? [];
       return list.map((e) => ServiceModel.fromJson(e as Map<String, dynamic>)).toList();
     }
+    _handleError(res);
     throw Exception('Gagal memuat layanan.');
   }
 
@@ -34,26 +35,36 @@ class LaundryService {
       final list = body['data'] as List? ?? [];
       return list.map((e) => TransactionModel.fromJson(e as Map<String, dynamic>)).toList();
     }
+    _handleError(res);
     throw Exception('Gagal memuat pesanan.');
   }
 
   // ── Create Order ──────────────────────────────────────────────────────────
   /// items = [{ 'service_id': int, 'quantity': double }]
-  Future<TransactionModel> createOrder(List<Map<String, dynamic>> items) async {
+  Future<TransactionModel> createOrder({
+    required List<Map<String, dynamic>> items,
+    required String address,
+    required String phone,
+    required String paymentMethod,
+    required String deliveryType,
+  }) async {
     final res = await http.post(
       Uri.parse(ApiConstants.orders),
       headers: _headers,
-      body: jsonEncode({'items': items}),
+      body: jsonEncode({
+        'items': items,
+        'address': address,
+        'phone': phone,
+        'payment_method': paymentMethod,
+        'delivery_type': deliveryType,
+      }),
     );
-    final body = jsonDecode(res.body) as Map<String, dynamic>;
     if (res.statusCode == 200 || res.statusCode == 201) {
+      final body = jsonDecode(res.body) as Map<String, dynamic>;
       return TransactionModel.fromJson(body['data'] as Map<String, dynamic>);
     }
-    if (body['errors'] != null) {
-      final errors = body['errors'] as Map<String, dynamic>;
-      throw Exception((errors.values.first as List).first as String);
-    }
-    throw Exception(body['message'] ?? 'Gagal membuat pesanan.');
+    _handleError(res);
+    throw Exception('Gagal membuat pesanan.');
   }
 
   // ── Update Profile ────────────────────────────────────────────────────────
@@ -72,14 +83,29 @@ class LaundryService {
         if (address != null) 'address': address,
       }),
     );
-    final body = jsonDecode(res.body) as Map<String, dynamic>;
     if (res.statusCode == 200) {
+      final body = jsonDecode(res.body) as Map<String, dynamic>;
       return UserModel.fromJson(body['user'] as Map<String, dynamic>);
     }
-    if (body['errors'] != null) {
-      final errors = body['errors'] as Map<String, dynamic>;
-      throw Exception((errors.values.first as List).first as String);
+    _handleError(res);
+    throw Exception('Gagal memperbarui profil.');
+  }
+
+  void _handleError(http.Response res) {
+    if (res.statusCode == 401) {
+      throw Exception('UNAUTHORIZED');
     }
-    throw Exception(body['message'] ?? 'Gagal memperbarui profil.');
+    try {
+      final body = jsonDecode(res.body) as Map<String, dynamic>;
+      if (body['errors'] != null) {
+        final errors = body['errors'] as Map<String, dynamic>;
+        throw Exception((errors.values.first as List).first as String);
+      }
+      if (body['message'] != null) {
+        throw Exception(body['message']);
+      }
+    } catch (_) {
+      rethrow;
+    }
   }
 }

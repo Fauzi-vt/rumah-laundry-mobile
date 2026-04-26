@@ -38,6 +38,8 @@ dependencies:
   http: ^1.6.0
   provider: ^6.1.5+1
   shared_preferences: ^2.5.5
+  url_launcher: ^6.3.2
+  quickalert: ^1.1.0
 
 dev_dependencies:
   flutter_test:

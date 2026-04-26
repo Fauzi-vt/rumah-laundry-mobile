@@ -3,7 +3,9 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../../../core/app_colors.dart';
 import '../../../data/models/service_model.dart';
+import '../../../data/models/transaction_model.dart';
 import '../../../providers/dashboard_provider.dart';
+import 'checkout_screen.dart';
 
 class OrderTab extends StatefulWidget {
   const OrderTab({super.key});
@@ -27,7 +29,7 @@ class _OrderTabState extends State<OrderTab> {
 
   int get cartItemCount => _cart.values.where((q) => q > 0).length;
 
-  Future<void> _submit(BuildContext context) async {
+  void _goToCheckout(BuildContext context) async {
     final items = _cart.entries
         .where((e) => e.value > 0)
         .map((e) => {'service_id': e.key, 'quantity': e.value})
@@ -39,14 +41,27 @@ class _OrderTabState extends State<OrderTab> {
     }
 
     final dash = context.read<DashboardProvider>();
-    final err  = await dash.createOrder(items);
+    final services = dash.services;
 
-    if (!context.mounted) return;
-    if (err == null) {
+    final success = await Navigator.of(context).push(
+      PageRouteBuilder(
+        pageBuilder: (_, __, ___) => CheckoutScreen(
+          items: items,
+          totalEstimasi: totalPrice(services),
+          cartItemCount: cartItemCount,
+        ),
+        transitionsBuilder: (_, anim, __, child) {
+          final slide = Tween<Offset>(
+            begin: const Offset(1, 0),
+            end: Offset.zero,
+          ).animate(CurvedAnimation(parent: anim, curve: Curves.easeOutCubic));
+          return SlideTransition(position: slide, child: child);
+        },
+      ),
+    );
+
+    if (success == true) {
       setState(() => _cart.clear());
-      _showSnack(context, '✅ Pesanan berhasil dibuat! Silakan lakukan pembayaran di kasir.');
-    } else {
-      _showSnack(context, err, isError: true);
     }
   }
 
@@ -210,14 +225,15 @@ class _OrderTabState extends State<OrderTab> {
             SizedBox(
               width: double.infinity, height: 50,
               child: ElevatedButton(
-                onPressed: isLoading ? null : () => _submit(context),
-                child: isLoading
-                    ? const SizedBox(width: 22, height: 22,
-                        child: CircularProgressIndicator(
-                            strokeWidth: 2.5, color: Colors.white))
-                    : Text('Buat Pesanan Sekarang',
-                        style: GoogleFonts.poppins(
-                            fontSize: 14, fontWeight: FontWeight.w700)),
+                onPressed: isLoading ? null : () => _goToCheckout(context),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primaryGreen,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                ),
+                child: Text('Lanjutkan ke Checkout',
+                    style: GoogleFonts.poppins(
+                        fontSize: 14, fontWeight: FontWeight.w700)),
               ),
             ),
           ],

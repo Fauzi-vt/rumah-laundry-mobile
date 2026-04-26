@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../../../core/app_colors.dart';
 import '../../../data/models/transaction_model.dart';
+import '../../../providers/auth_provider.dart';
 import '../../../providers/dashboard_provider.dart';
 
 class OrdersTab extends StatefulWidget {
@@ -62,18 +63,67 @@ class _OrdersTabState extends State<OrdersTab>
             ? const Center(
                 child: CircularProgressIndicator(
                     color: AppColors.primaryGreen))
-            : TabBarView(
-                controller: _tab,
-                children: [
-                  _OrderList(orders: dash.transactions),
-                  _OrderList(orders: dash.pendingPayments,
-                      emptyMsg: 'Tidak ada tagihan tertunda 🎉'),
-                  _OrderList(orders: dash.inProgressOrders,
-                      emptyMsg: 'Tidak ada pesanan yang sedang diproses.'),
-                  _OrderList(orders: dash.completedOrders,
-                      emptyMsg: 'Belum ada pesanan yang selesai.'),
-                ],
+            : dash.error != null
+                ? _buildErrorState(context, dash.error!)
+                : TabBarView(
+                    controller: _tab,
+                    children: [
+                      _OrderList(orders: dash.transactions),
+                      _OrderList(orders: dash.pendingPayments,
+                          emptyMsg: 'Tidak ada tagihan tertunda 🎉'),
+                      _OrderList(orders: dash.inProgressOrders,
+                          emptyMsg: 'Tidak ada pesanan yang sedang diproses.'),
+                      _OrderList(orders: dash.completedOrders,
+                          emptyMsg: 'Belum ada pesanan yang selesai.'),
+                    ],
+                  ),
+      ),
+    );
+  }
+
+  Widget _buildErrorState(BuildContext context, String error) {
+    final isAuthError = error.contains('Sesi telah berakhir');
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(isAuthError ? '🔐' : '📡', style: const TextStyle(fontSize: 48)),
+            const SizedBox(height: 16),
+            Text(
+              isAuthError ? 'Sesi Berakhir' : 'Gagal Memuat Data',
+              style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              error,
+              textAlign: TextAlign.center,
+              style: GoogleFonts.poppins(fontSize: 13, color: AppColors.textSecondary),
+            ),
+            const SizedBox(height: 24),
+            SizedBox(
+              width: 160,
+              child: ElevatedButton(
+                onPressed: () {
+                  if (isAuthError) {
+                    context.read<AuthProvider>().logout().then((_) {
+                      Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
+                    });
+                  } else {
+                    context.read<DashboardProvider>().refresh();
+                  }
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primaryGreen,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                child: Text(isAuthError ? 'Login Ulang' : 'Coba Lagi'),
               ),
+            ),
+          ],
+        ),
       ),
     );
   }
