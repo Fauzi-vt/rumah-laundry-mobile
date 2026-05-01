@@ -117,10 +117,25 @@ class _RegisterScreenState extends State<RegisterScreen>
   Widget _buildHeader() {
     return Column(
       children: [
-        Image.asset(
-          'assets/images/logo.png',
-          width: 110,
-          height: 110,
+        Container(
+          width: 100,
+          height: 100,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(28),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.06),
+                blurRadius: 20,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+          clipBehavior: Clip.hardEdge,
+          child: Image.asset(
+            'assets/images/logo.png',
+            fit: BoxFit.cover,
+          ),
         ),
         const SizedBox(height: 14),
         Text(

@@ -84,7 +84,26 @@ class _SplashContent extends StatelessWidget {
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Image.asset('assets/images/logo.png', width: 130, height: 130),
+        Container(
+          width: 120,
+          height: 120,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(32),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.06),
+                blurRadius: 24,
+                offset: const Offset(0, 10),
+              ),
+            ],
+          ),
+          clipBehavior: Clip.hardEdge,
+          child: Image.asset(
+            'assets/images/logo.png',
+            fit: BoxFit.cover,
+          ),
+        ),
         const SizedBox(height: 32),
         const SizedBox(
           width: 28, height: 28,

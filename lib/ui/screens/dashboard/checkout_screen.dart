@@ -12,12 +12,14 @@ class CheckoutScreen extends StatefulWidget {
   final List<Map<String, dynamic>> items;
   final double totalEstimasi;
   final int cartItemCount;
+  final VoidCallback? onCheckoutSuccess;
 
   const CheckoutScreen({
     super.key,
     required this.items,
     required this.totalEstimasi,
     required this.cartItemCount,
+    this.onCheckoutSuccess,
   });
 
   @override
@@ -84,10 +86,16 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         Navigator.of(context).pop(); // Tutup loading alert
 
         if (err == null) {
+          // Refresh data dari server supaya transaction list up-to-date
+          await dash.refresh();
+
+          if (!context.mounted) return;
+
           final TransactionModel? newTrx =
               dash.transactions.isNotEmpty ? dash.transactions.first : null;
           
           if (newTrx != null) {
+            widget.onCheckoutSuccess?.call();
             Navigator.of(context).pushReplacement(
               PageRouteBuilder(
                 pageBuilder: (_, __, ___) =>

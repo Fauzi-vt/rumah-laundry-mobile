@@ -134,19 +134,44 @@ class HomeTab extends StatelessWidget {
         children: [
           Row(
             children: [
-              Image.asset('assets/images/logo.png', width: 42, height: 42),
-              const Spacer(),
               Container(
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.15),
+                  color: Colors.white,
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Icon(
-                  Icons.notifications_outlined,
-                  color: Colors.white,
-                  size: 22,
+                clipBehavior: Clip.hardEdge,
+                child: Image.asset(
+                  'assets/images/logo.png',
+                  fit: BoxFit.cover,
+                ),
+              ),
+              const Spacer(),
+              InkWell(
+                onTap: () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Tidak ada notifikasi baru.', style: GoogleFonts.poppins(color: Colors.white)),
+                      backgroundColor: AppColors.primaryGreen,
+                      behavior: SnackBarBehavior.floating,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    )
+                  );
+                },
+                borderRadius: BorderRadius.circular(12),
+                child: Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(
+                    Icons.notifications_outlined,
+                    color: Colors.white,
+                    size: 22,
+                  ),
                 ),
               ),
             ],
@@ -166,29 +191,42 @@ class HomeTab extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 16),
-          Container(
-            height: 46,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: Row(
-              children: [
-                const SizedBox(width: 14),
-                const Icon(
-                  Icons.search_rounded,
-                  color: AppColors.textSecondary,
-                  size: 20,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  'Cari layanan laundry…',
-                  style: GoogleFonts.poppins(
+          InkWell(
+            onTap: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Fitur pencarian segera hadir!', style: GoogleFonts.poppins(color: Colors.white)),
+                  backgroundColor: AppColors.primaryGreen,
+                  behavior: SnackBarBehavior.floating,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                )
+              );
+            },
+            borderRadius: BorderRadius.circular(14),
+            child: Container(
+              height: 46,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Row(
+                children: [
+                  const SizedBox(width: 14),
+                  const Icon(
+                    Icons.search_rounded,
                     color: AppColors.textSecondary,
-                    fontSize: 13,
+                    size: 20,
                   ),
-                ),
-              ],
+                  const SizedBox(width: 8),
+                  Text(
+                    'Cari layanan laundry…',
+                    style: GoogleFonts.poppins(
+                      color: AppColors.textSecondary,
+                      fontSize: 13,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ],

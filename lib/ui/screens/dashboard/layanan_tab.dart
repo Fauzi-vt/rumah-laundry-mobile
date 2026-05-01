@@ -33,6 +33,38 @@ class LayananTab extends StatelessWidget {
       return const Center(
           child: CircularProgressIndicator(color: AppColors.primaryGreen));
     }
+    if (dash.error != null) {
+      return ListView(children: [
+        const SizedBox(height: 80),
+        Center(
+          child: Column(children: [
+            const Icon(Icons.wifi_off_rounded, size: 60, color: Colors.grey),
+            const SizedBox(height: 12),
+            Text('Gagal memuat data',
+                style: GoogleFonts.poppins(
+                    fontSize: 16, fontWeight: FontWeight.w600,
+                    color: AppColors.textPrimary)),
+            const SizedBox(height: 8),
+            Text(dash.error!,
+                style: GoogleFonts.poppins(
+                    fontSize: 12, color: Colors.red.shade600),
+                textAlign: TextAlign.center),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: () => dash.refresh(),
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primaryGreen,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10))),
+              child: Text('Coba Lagi',
+                  style: GoogleFonts.poppins(
+                      color: Colors.white, fontWeight: FontWeight.w600)),
+            ),
+          ]),
+        ),
+      ]);
+    }
+
     if (dash.services.isEmpty) {
       return ListView(children: [
         const SizedBox(height: 80),

@@ -48,6 +48,9 @@ class _OrderTabState extends State<OrderTab> {
         pageBuilder: (_, __, ___) => CheckoutScreen(
           items: items,
           totalEstimasi: totalPrice(services),
+          onCheckoutSuccess: () {
+            if (mounted) setState(() => _cart.clear());
+          },
           cartItemCount: cartItemCount,
         ),
         transitionsBuilder: (_, anim, __, child) {
@@ -60,9 +63,8 @@ class _OrderTabState extends State<OrderTab> {
       ),
     );
 
-    if (success == true) {
-      setState(() => _cart.clear());
-    }
+    // success is true if user cancels and we don't clear? No, we clear it inside the callback.
+    // So we don't need this check anymore.
   }
 
   void _showSnack(BuildContext context, String msg, {bool isError = false}) {
@@ -109,13 +111,46 @@ class _OrderTabState extends State<OrderTab> {
       ),
       body: dash.isLoading
           ? const Center(child: CircularProgressIndicator(color: AppColors.primaryGreen))
-          : Column(
-              children: [
-                Expanded(child: _buildServiceList(services)),
-                if (cartItemCount > 0)
-                  _buildOrderSummary(context, services, isLoading),
-              ],
-            ),
+          : dash.error != null
+              ? _buildErrorState(context, dash.error!)
+              : Column(
+                  children: [
+                    Expanded(child: _buildServiceList(services)),
+                    if (cartItemCount > 0)
+                      _buildOrderSummary(context, services, isLoading),
+                  ],
+                ),
+    );
+  }
+
+  Widget _buildErrorState(BuildContext context, String error) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.wifi_off_rounded, size: 60, color: Colors.grey),
+          const SizedBox(height: 12),
+          Text('Gagal memuat data',
+              style: GoogleFonts.poppins(
+                  fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
+          const SizedBox(height: 8),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 32),
+            child: Text(error,
+                style: GoogleFonts.poppins(fontSize: 12, color: Colors.red.shade600),
+                textAlign: TextAlign.center),
+          ),
+          const SizedBox(height: 16),
+          ElevatedButton(
+            onPressed: () => context.read<DashboardProvider>().refresh(),
+            style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primaryGreen,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+            child: Text('Coba Lagi',
+                style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.w600)),
+          ),
+        ],
+      ),
     );
   }
 

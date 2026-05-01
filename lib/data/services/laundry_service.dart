@@ -95,17 +95,26 @@ class LaundryService {
     if (res.statusCode == 401) {
       throw Exception('UNAUTHORIZED');
     }
+    // Try to extract a meaningful message from the JSON body
     try {
       final body = jsonDecode(res.body) as Map<String, dynamic>;
       if (body['errors'] != null) {
         final errors = body['errors'] as Map<String, dynamic>;
-        throw Exception((errors.values.first as List).first as String);
+        final firstKey = errors.keys.first;
+        final firstVal = errors[firstKey];
+        if (firstVal is List && firstVal.isNotEmpty) {
+          throw Exception(firstVal.first as String);
+        }
+        throw Exception(firstVal.toString());
       }
       if (body['message'] != null) {
-        throw Exception(body['message']);
+        throw Exception(body['message'].toString());
       }
-    } catch (_) {
-      rethrow;
+    } on FormatException {
+      // Body bukan JSON valid — gunakan status code sebagai info
+      throw Exception('Error ${res.statusCode}: ${res.reasonPhrase ?? "Terjadi kesalahan server"}');
     }
+    // Fallback
+    throw Exception('Error ${res.statusCode}: Terjadi kesalahan server.');
   }
 }

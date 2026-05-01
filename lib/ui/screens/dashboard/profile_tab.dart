@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../core/app_colors.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../providers/dashboard_provider.dart';
@@ -247,8 +248,42 @@ class _ProfileTabState extends State<ProfileTab> {
 
   Widget _buildOtherMenu(BuildContext context) {
     return _Section('Lainnya', [
-      _MenuRow(icon: Icons.info_outline_rounded,
-          label: 'Tentang Aplikasi', onTap: () {}),
+      _MenuRow(
+        icon: Icons.support_agent_rounded,
+        label: 'Bantuan / Customer Service',
+        onTap: () async {
+          final url = Uri.parse('https://wa.me/6281234567890?text=${Uri.encodeComponent('Halo Admin Rumah Laundry, saya butuh bantuan.')}');
+          if (await canLaunchUrl(url)) {
+            await launchUrl(url, mode: LaunchMode.externalApplication);
+          } else {
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Tidak dapat membuka WhatsApp.', style: GoogleFonts.poppins(color: Colors.white)),
+                  backgroundColor: Colors.red.shade700,
+                  behavior: SnackBarBehavior.floating,
+                )
+              );
+            }
+          }
+        },
+      ),
+      _MenuRow(
+        icon: Icons.info_outline_rounded,
+        label: 'Tentang Aplikasi',
+        onTap: () {
+          showAboutDialog(
+            context: context,
+            applicationName: 'Rumah Laundry',
+            applicationVersion: '1.0.0',
+            applicationIcon: ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: Image.asset('assets/images/logo.png', width: 48, height: 48),
+            ),
+            applicationLegalese: '© 2026 Rumah Laundry. All rights reserved.',
+          );
+        },
+      ),
       _MenuRow(
         icon: Icons.logout_rounded,
         label: 'Keluar',

@@ -113,10 +113,25 @@ class _LoginScreenState extends State<LoginScreen>
   Widget _buildHero() {
     return Column(
       children: [
-        Image.asset(
-          'assets/images/logo.png',
-          width: 120,
-          height: 120,
+        Container(
+          width: 100,
+          height: 100,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(28),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.06),
+                blurRadius: 20,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+          clipBehavior: Clip.hardEdge,
+          child: Image.asset(
+            'assets/images/logo.png',
+            fit: BoxFit.cover,
+          ),
         ),
         const SizedBox(height: 16),
         Text(
