@@ -2,7 +2,7 @@
     <!-- Izin internet untuk akses API -->
     <uses-permission android:name="android.permission.INTERNET"/>
     <application
-        android:label="rumah_laundry_mobile"
+        android:label="Rumah Laundry"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
         android:usesCleartextTraffic="true">

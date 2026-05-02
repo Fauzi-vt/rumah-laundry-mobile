@@ -252,7 +252,7 @@ class _ProfileTabState extends State<ProfileTab> {
         icon: Icons.support_agent_rounded,
         label: 'Bantuan / Customer Service',
         onTap: () async {
-          final url = Uri.parse('https://wa.me/6281234567890?text=${Uri.encodeComponent('Halo Admin Rumah Laundry, saya butuh bantuan.')}');
+          final url = Uri.parse('https://wa.me/6281223513917?text=${Uri.encodeComponent('Halo Admin Rumah Laundry, saya butuh bantuan.')}');
           if (await canLaunchUrl(url)) {
             await launchUrl(url, mode: LaunchMode.externalApplication);
           } else {

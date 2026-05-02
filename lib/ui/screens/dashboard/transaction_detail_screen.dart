@@ -622,7 +622,7 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen>
   Future<void> _openWhatsApp() async {
     final invoice = widget.transaction.invoiceCode;
     final message = 'Halo Admin Rumah Laundry, saya ingin konfirmasi pesanan dengan nomor invoice *$invoice*.';
-    final url = Uri.parse('https://wa.me/6281234567890?text=${Uri.encodeComponent(message)}');
+    final url = Uri.parse('https://wa.me/6281223513917?text=${Uri.encodeComponent(message)}');
     
     if (await canLaunchUrl(url)) {
       await launchUrl(url, mode: LaunchMode.externalApplication);
