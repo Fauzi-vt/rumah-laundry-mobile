@@ -94,15 +94,12 @@ class AuthService {
 
       if (response.user == null) throw Exception('Registrasi gagal.');
 
-      // Create profile in public.users table if it doesn't exist (if not handled by trigger)
-      // Note: Usually a Postgres trigger handles this, but we can do it manually if needed.
-      // For now, let's assume we need to insert it.
+      // Create profile in public.users table
       final newProfile = {
         'name': name,
         'email': email,
         'phone': phone,
         'role': 'user',
-        // 'id' might be auto-incrementing if it's int, or we use auth uuid if changed.
       };
 
       final inserted = await _supabase
