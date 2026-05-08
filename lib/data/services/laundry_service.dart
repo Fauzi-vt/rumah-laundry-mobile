@@ -24,7 +24,7 @@ class LaundryService {
   Future<List<TransactionModel>> getTransactions() async {
     try {
       final userAuth = _supabase.auth.currentUser;
-      if (userAuth == null) throw Exception('UNAUTHORIZED');
+      if (userAuth == null) throw Exception('Sesi login tidak ditemukan. Silakan login kembali untuk melihat pesanan.');
 
       // 1. Ambil ID (int) dari tabel public.users berdasarkan email auth
       final profile = await _supabase
@@ -60,7 +60,7 @@ class LaundryService {
   }) async {
     try {
       final userAuth = _supabase.auth.currentUser;
-      if (userAuth == null) throw Exception('UNAUTHORIZED');
+      if (userAuth == null) throw Exception('Sesi login tidak ditemukan. Silakan login kembali untuk membuat pesanan.');
 
       // Ambil ID int dari profil
       final profile = await _supabase
@@ -77,15 +77,22 @@ class LaundryService {
       final timeStr = "${now.hour}${now.minute}${now.second}";
       final invoiceCode = "INV-$dateStr-$timeStr";
 
+      // Calculate total price from items
+      double totalPrice = 0;
+      for (var item in items) {
+        totalPrice += (item['price'] ?? 0) * (item['quantity'] ?? 0);
+      }
+
       // 1. Create the transaction record
       final transactionData = {
         'user_id': userIdInt,
-        'invoice_code': invoiceCode, // Tambahkan ini
+        'invoice_code': invoiceCode,
+        'total_price': totalPrice, // Tambahkan total_price
         'address': address,
         'phone': phone,
         'payment_method': paymentMethod,
         'delivery_type': deliveryType,
-        'status': 'pending',
+        'status': 'baru', // Ganti 'pending' menjadi 'baru'
         'created_at': now.toIso8601String(),
       };
 
@@ -98,10 +105,16 @@ class LaundryService {
       final transactionId = transaction['id'];
 
       // 2. Insert items (transaction details)
-      final details = items.map((item) => {
-        'transaction_id': transactionId,
-        'service_id': item['service_id'],
-        'quantity': item['quantity'],
+      final details = items.map((item) {
+        final double price = (item['price'] ?? 0).toDouble();
+        final double qty = (item['quantity'] ?? 0).toDouble();
+        return {
+          'transaction_id': transactionId,
+          'service_id': item['service_id'],
+          'quantity': qty,
+          'price': price, // Tambahkan price
+          'subtotal': price * qty, // Tambahkan subtotal
+        };
       }).toList();
 
       await _supabase.from('transaction_details').insert(details);
@@ -123,7 +136,7 @@ class LaundryService {
   }) async {
     try {
       final user = _supabase.auth.currentUser;
-      if (user == null) throw Exception('UNAUTHORIZED');
+      if (user == null) throw Exception('Sesi login tidak ditemukan. Silakan login kembali untuk memperbarui profil.');
 
       final updateData = {
         'name': name,
