@@ -71,15 +71,22 @@ class LaundryService {
       
       final int userIdInt = profile['id'];
 
+      // Generate invoice code (Contoh: INV-20240508-123456)
+      final now = DateTime.now();
+      final dateStr = "${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}";
+      final timeStr = "${now.hour}${now.minute}${now.second}";
+      final invoiceCode = "INV-$dateStr-$timeStr";
+
       // 1. Create the transaction record
       final transactionData = {
         'user_id': userIdInt,
+        'invoice_code': invoiceCode, // Tambahkan ini
         'address': address,
         'phone': phone,
         'payment_method': paymentMethod,
         'delivery_type': deliveryType,
         'status': 'pending',
-        'created_at': DateTime.now().toIso8601String(),
+        'created_at': now.toIso8601String(),
       };
 
       final transaction = await _supabase
