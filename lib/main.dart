@@ -8,9 +8,17 @@ import 'providers/dashboard_provider.dart';
 import 'ui/screens/auth/login_screen.dart';
 import 'ui/screens/auth/register_screen.dart';
 import 'ui/screens/dashboard/dashboard_shell.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'core/api_constants.dart';
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  await Supabase.initialize(
+    url: ApiConstants.supabaseUrl,
+    anonKey: ApiConstants.supabaseAnonKey,
+  );
+
   runApp(
     MultiProvider(
       providers: [

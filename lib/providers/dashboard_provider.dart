@@ -48,9 +48,7 @@ class DashboardProvider extends ChangeNotifier {
     _error  = null;
     notifyListeners();
     try {
-      final token = await AuthService().getToken();
-      if (token == null) throw Exception('Sesi tidak ditemukan.');
-      final svc = LaundryService(token: token);
+      final svc = LaundryService();
       final results = await Future.wait([svc.getServices(), svc.getTransactions()]);
       _services     = results[0] as List<ServiceModel>;
       _transactions = (results[1] as List<TransactionModel>)
@@ -82,9 +80,7 @@ class DashboardProvider extends ChangeNotifier {
     _orderLoading = true;
     notifyListeners();
     try {
-      final token = await AuthService().getToken();
-      if (token == null) throw Exception('Sesi tidak ditemukan.');
-      final trx = await LaundryService(token: token).createOrder(
+      final trx = await LaundryService().createOrder(
         items: items,
         address: address,
         phone: phone,
@@ -113,9 +109,7 @@ class DashboardProvider extends ChangeNotifier {
     _profileLoading = true;
     notifyListeners();
     try {
-      final token = await AuthService().getToken();
-      if (token == null) throw Exception('Sesi tidak ditemukan.');
-      final user = await LaundryService(token: token).updateProfile(
+      final user = await LaundryService().updateProfile(
         name: name, email: email, phone: phone, address: address);
       _profileLoading = false;
       notifyListeners();

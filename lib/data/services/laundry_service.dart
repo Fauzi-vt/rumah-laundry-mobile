@@ -1,46 +1,56 @@
-import 'dart:convert';
-import 'package:http/http.dart' as http;
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/service_model.dart';
 import '../models/transaction_model.dart';
 import '../models/user_model.dart';
-import '../../core/api_constants.dart';
 
 class LaundryService {
-  final String token;
-  LaundryService({required this.token});
-
-  Map<String, String> get _headers => {
-        'Content-Type':  'application/json',
-        'Accept':        'application/json',
-        'Authorization': 'Bearer $token',
-      };
+  final _supabase = Supabase.instance.client;
 
   // ── Services ──────────────────────────────────────────────────────────────
   Future<List<ServiceModel>> getServices() async {
-    final res = await http.get(Uri.parse(ApiConstants.services), headers: _headers);
-    if (res.statusCode == 200) {
-      final body = jsonDecode(res.body) as Map<String, dynamic>;
-      final list = body['data'] as List? ?? [];
+    try {
+      final response = await _supabase
+          .from('services')
+          .select();
+      
+      final list = response as List? ?? [];
       return list.map((e) => ServiceModel.fromJson(e as Map<String, dynamic>)).toList();
+    } catch (e) {
+      throw Exception('Gagal memuat layanan: ${e.toString()}');
     }
-    _handleError(res);
-    throw Exception('Gagal memuat layanan.');
   }
 
   // ── Transactions ──────────────────────────────────────────────────────────
   Future<List<TransactionModel>> getTransactions() async {
-    final res = await http.get(Uri.parse(ApiConstants.transactions), headers: _headers);
-    if (res.statusCode == 200) {
-      final body = jsonDecode(res.body) as Map<String, dynamic>;
-      final list = body['data'] as List? ?? [];
+    try {
+      final userAuth = _supabase.auth.currentUser;
+      if (userAuth == null) throw Exception('UNAUTHORIZED');
+
+      // 1. Ambil ID (int) dari tabel public.users berdasarkan email auth
+      final profile = await _supabase
+          .from('users')
+          .select('id')
+          .eq('email', userAuth.email as String)
+          .maybeSingle();
+      
+      if (profile == null) return [];
+      final int userIdInt = profile['id'];
+
+      // 2. Gunakan ID int untuk mengambil transaksi
+      final response = await _supabase
+          .from('transactions')
+          .select('*, details:transaction_details(*, service:services(*))')
+          .eq('user_id', userIdInt)
+          .order('created_at', ascending: false);
+      
+      final list = response as List? ?? [];
       return list.map((e) => TransactionModel.fromJson(e as Map<String, dynamic>)).toList();
+    } catch (e) {
+      throw Exception('Gagal memuat pesanan: ${e.toString()}');
     }
-    _handleError(res);
-    throw Exception('Gagal memuat pesanan.');
   }
 
   // ── Create Order ──────────────────────────────────────────────────────────
-  /// items = [{ 'service_id': int, 'quantity': double }]
   Future<TransactionModel> createOrder({
     required List<Map<String, dynamic>> items,
     required String address,
@@ -48,23 +58,53 @@ class LaundryService {
     required String paymentMethod,
     required String deliveryType,
   }) async {
-    final res = await http.post(
-      Uri.parse(ApiConstants.orders),
-      headers: _headers,
-      body: jsonEncode({
-        'items': items,
+    try {
+      final userAuth = _supabase.auth.currentUser;
+      if (userAuth == null) throw Exception('UNAUTHORIZED');
+
+      // Ambil ID int dari profil
+      final profile = await _supabase
+          .from('users')
+          .select('id')
+          .eq('email', userAuth.email as String)
+          .single();
+      
+      final int userIdInt = profile['id'];
+
+      // 1. Create the transaction record
+      final transactionData = {
+        'user_id': userIdInt,
         'address': address,
         'phone': phone,
         'payment_method': paymentMethod,
         'delivery_type': deliveryType,
-      }),
-    );
-    if (res.statusCode == 200 || res.statusCode == 201) {
-      final body = jsonDecode(res.body) as Map<String, dynamic>;
-      return TransactionModel.fromJson(body['data'] as Map<String, dynamic>);
+        'status': 'pending',
+        'created_at': DateTime.now().toIso8601String(),
+      };
+
+      final transaction = await _supabase
+          .from('transactions')
+          .insert(transactionData)
+          .select()
+          .single();
+
+      final transactionId = transaction['id'];
+
+      // 2. Insert items (transaction details)
+      final details = items.map((item) => {
+        'transaction_id': transactionId,
+        'service_id': item['service_id'],
+        'quantity': item['quantity'],
+      }).toList();
+
+      await _supabase.from('transaction_details').insert(details);
+
+      // 3. Return full transaction model
+      // We might want to re-fetch it with details or just construct it.
+      return TransactionModel.fromJson(transaction);
+    } catch (e) {
+      throw Exception('Gagal membuat pesanan: ${e.toString()}');
     }
-    _handleError(res);
-    throw Exception('Gagal membuat pesanan.');
   }
 
   // ── Update Profile ────────────────────────────────────────────────────────
@@ -74,47 +114,27 @@ class LaundryService {
     String? phone,
     String? address,
   }) async {
-    final res = await http.put(
-      Uri.parse(ApiConstants.profile),
-      headers: _headers,
-      body: jsonEncode({
-        'name': name, 'email': email,
+    try {
+      final user = _supabase.auth.currentUser;
+      if (user == null) throw Exception('UNAUTHORIZED');
+
+      final updateData = {
+        'name': name,
+        'email': email,
         if (phone != null) 'phone': phone,
         if (address != null) 'address': address,
-      }),
-    );
-    if (res.statusCode == 200) {
-      final body = jsonDecode(res.body) as Map<String, dynamic>;
-      return UserModel.fromJson(body['user'] as Map<String, dynamic>);
-    }
-    _handleError(res);
-    throw Exception('Gagal memperbarui profil.');
-  }
+      };
 
-  void _handleError(http.Response res) {
-    if (res.statusCode == 401) {
-      throw Exception('UNAUTHORIZED');
+      final updated = await _supabase
+          .from('users')
+          .update(updateData)
+          .eq('email', email) // or use id if synced
+          .select()
+          .single();
+
+      return UserModel.fromJson(updated);
+    } catch (e) {
+      throw Exception('Gagal memperbarui profil: ${e.toString()}');
     }
-    // Try to extract a meaningful message from the JSON body
-    try {
-      final body = jsonDecode(res.body) as Map<String, dynamic>;
-      if (body['errors'] != null) {
-        final errors = body['errors'] as Map<String, dynamic>;
-        final firstKey = errors.keys.first;
-        final firstVal = errors[firstKey];
-        if (firstVal is List && firstVal.isNotEmpty) {
-          throw Exception(firstVal.first as String);
-        }
-        throw Exception(firstVal.toString());
-      }
-      if (body['message'] != null) {
-        throw Exception(body['message'].toString());
-      }
-    } on FormatException {
-      // Body bukan JSON valid — gunakan status code sebagai info
-      throw Exception('Error ${res.statusCode}: ${res.reasonPhrase ?? "Terjadi kesalahan server"}');
-    }
-    // Fallback
-    throw Exception('Error ${res.statusCode}: Terjadi kesalahan server.');
   }
 }

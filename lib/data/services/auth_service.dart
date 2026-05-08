@@ -1,33 +1,29 @@
 import 'dart:convert';
-import 'package:http/http.dart' as http;
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/user_model.dart';
-import '../../core/api_constants.dart';
 
 class AuthService {
-  static const _tokenKey = 'auth_token';
   static const _userKey  = 'auth_user';
+  final _supabase = Supabase.instance.client;
 
   Future<String?> getToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(_tokenKey);
+    return _supabase.auth.currentSession?.accessToken;
   }
 
-  Future<void> _saveSession(String token, UserModel user) async {
+  Future<void> _saveUserToLocal(UserModel user) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_tokenKey, token);
     await prefs.setString(_userKey, jsonEncode(user.toJson()));
   }
 
   Future<void> saveUser(UserModel user) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_userKey, jsonEncode(user.toJson()));
+    await _saveUserToLocal(user);
   }
 
   Future<void> clearSession() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_tokenKey);
     await prefs.remove(_userKey);
+    await _supabase.auth.signOut();
   }
 
   Future<UserModel?> getSavedUser() async {
@@ -38,24 +34,41 @@ class AuthService {
   }
 
   Future<bool> isLoggedIn() async {
-    final token = await getToken();
-    return token != null && token.isNotEmpty;
+    return _supabase.auth.currentSession != null;
+  }
+
+  Future<void> restoreSession() async {
+    // Supabase handles session restoration automatically via persistence.
+    // We just need to make sure our local user model is synced if needed.
   }
 
   Future<UserModel> login({required String email, required String password}) async {
-    final res = await http.post(
-      Uri.parse(ApiConstants.login),
-      headers: {'Content-Type': 'application/json', 'Accept': 'application/json'},
-      body: jsonEncode({'email': email, 'password': password}),
-    );
-    final body = jsonDecode(res.body) as Map<String, dynamic>;
-    if (res.statusCode == 200) {
-      final token = body['token'] as String;
-      final user  = UserModel.fromJson(body['user'] as Map<String, dynamic>);
-      await _saveSession(token, user);
+    try {
+      final response = await _supabase.auth.signInWithPassword(
+        email: email,
+        password: password,
+      );
+
+      if (response.user == null) throw Exception('Login gagal: User tidak ditemukan.');
+
+      // Fetch additional profile data from public.users table
+      // Assuming the table 'users' has the profile info and links to auth.uid()
+      final profile = await _supabase
+          .from('users')
+          .select()
+          .eq('email', email)
+          .maybeSingle();
+
+      if (profile == null) throw Exception('Profil user tidak ditemukan di database.');
+
+      final user = UserModel.fromJson(profile);
+      await _saveUserToLocal(user);
       return user;
+    } on AuthException catch (e) {
+      throw Exception(e.message);
+    } catch (e) {
+      throw Exception('Login gagal: ${e.toString()}');
     }
-    throw Exception(body['message'] ?? 'Login gagal.');
   }
 
   Future<UserModel> register({
@@ -65,41 +78,50 @@ class AuthService {
     required String passwordConfirmation,
     String? phone,
   }) async {
-    final res = await http.post(
-      Uri.parse(ApiConstants.register),
-      headers: {'Content-Type': 'application/json', 'Accept': 'application/json'},
-      body: jsonEncode({
-        'name': name, 'email': email,
-        'password': password, 'password_confirmation': passwordConfirmation,
-        if (phone != null && phone.isNotEmpty) 'phone': phone,
-      }),
-    );
-    final body = jsonDecode(res.body) as Map<String, dynamic>;
-    if (res.statusCode == 200 || res.statusCode == 201) {
-      final token = body['token'] as String;
-      final user  = UserModel.fromJson(body['user'] as Map<String, dynamic>);
-      await _saveSession(token, user);
+    try {
+      if (password != passwordConfirmation) {
+        throw Exception('Konfirmasi password tidak cocok.');
+      }
+
+      final response = await _supabase.auth.signUp(
+        email: email,
+        password: password,
+        data: {
+          'name': name,
+          'phone': phone,
+        },
+      );
+
+      if (response.user == null) throw Exception('Registrasi gagal.');
+
+      // Create profile in public.users table if it doesn't exist (if not handled by trigger)
+      // Note: Usually a Postgres trigger handles this, but we can do it manually if needed.
+      // For now, let's assume we need to insert it.
+      final newProfile = {
+        'name': name,
+        'email': email,
+        'phone': phone,
+        'role': 'user',
+        // 'id' might be auto-incrementing if it's int, or we use auth uuid if changed.
+      };
+
+      final inserted = await _supabase
+          .from('users')
+          .insert(newProfile)
+          .select()
+          .single();
+
+      final user = UserModel.fromJson(inserted);
+      await _saveUserToLocal(user);
       return user;
+    } on AuthException catch (e) {
+      throw Exception(e.message);
+    } catch (e) {
+      throw Exception('Registrasi gagal: ${e.toString()}');
     }
-    if (body['errors'] != null) {
-      final errors  = body['errors'] as Map<String, dynamic>;
-      final firstMsg = (errors.values.first as List).first as String;
-      throw Exception(firstMsg);
-    }
-    throw Exception(body['message'] ?? 'Registrasi gagal.');
   }
 
   Future<void> logout() async {
-    try {
-      final token = await getToken();
-      if (token != null) {
-        await http.post(Uri.parse(ApiConstants.logout), headers: {
-          'Content-Type': 'application/json', 'Accept': 'application/json',
-          'Authorization': 'Bearer $token',
-        });
-      }
-    } finally {
-      await clearSession();
-    }
+    await clearSession();
   }
 }

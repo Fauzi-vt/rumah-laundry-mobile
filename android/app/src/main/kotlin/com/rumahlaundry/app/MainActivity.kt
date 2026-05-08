@@ -1,4 +1,4 @@
-package com.example.rumah_laundry_mobile
+package com.rumahlaundry.app
 
 import io.flutter.embedding.android.FlutterActivity
 
