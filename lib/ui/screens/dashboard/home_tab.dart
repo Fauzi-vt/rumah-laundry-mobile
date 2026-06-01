@@ -6,6 +6,7 @@ import '../../../data/models/service_model.dart';
 import '../../../data/models/transaction_model.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../providers/dashboard_provider.dart';
+import 'dashboard_shell.dart';
 
 class HomeTab extends StatelessWidget {
   const HomeTab({super.key});
@@ -14,7 +15,11 @@ class HomeTab extends StatelessWidget {
   Widget build(BuildContext context) {
     final dash = context.watch<DashboardProvider>();
     final user = context.watch<AuthProvider>().user;
-    final firstName = (user?.name ?? 'Pelanggan').split(' ').first;
+    final rawName = (user?.name ?? 'Pelanggan').trim();
+    final firstName = rawName.isNotEmpty ? rawName.split(' ').first : 'Pelanggan';
+    final capitalizedName = firstName.isNotEmpty 
+        ? '${firstName[0].toUpperCase()}${firstName.substring(1)}'
+        : 'Pelanggan';
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -23,7 +28,7 @@ class HomeTab extends StatelessWidget {
         onRefresh: () => context.read<DashboardProvider>().refresh(),
         child: CustomScrollView(
           slivers: [
-            SliverToBoxAdapter(child: _buildHeader(context, firstName)),
+            SliverToBoxAdapter(child: _buildHeader(context, capitalizedName)),
 
             // ── Error Banner ──────────────────────────────────────────
             if (dash.error != null)
@@ -38,7 +43,7 @@ class HomeTab extends StatelessWidget {
               ),
             ),
             SliverToBoxAdapter(child: _buildSectionTitle('Layanan Kami')),
-            SliverToBoxAdapter(child: _buildServicesGrid(dash)),
+            _buildServicesGrid(dash),
             SliverToBoxAdapter(child: _buildSectionTitle('Pesanan Terbaru')),
             _buildRecentOrders(dash),
             // Extra bottom padding so last card clears the nav bar
@@ -176,7 +181,7 @@ class HomeTab extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 32), // Increased from 20 for spacious vertical spacing
           Text(
             'Halo, $firstName 👋',
             style: GoogleFonts.poppins(color: Colors.white70, fontSize: 13),
@@ -188,19 +193,13 @@ class HomeTab extends StatelessWidget {
               color: Colors.white,
               fontSize: 22,
               fontWeight: FontWeight.w700,
+              height: 1.0,
             ),
           ),
           const SizedBox(height: 16),
           InkWell(
             onTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('Fitur pencarian segera hadir!', style: GoogleFonts.poppins(color: Colors.white)),
-                  backgroundColor: AppColors.primaryGreen,
-                  behavior: SnackBarBehavior.floating,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                )
-              );
+              const TabSwitchNotification(1).dispatch(context);
             },
             borderRadius: BorderRadius.circular(14),
             child: Container(
@@ -290,33 +289,42 @@ class HomeTab extends StatelessWidget {
   // ── Services ──────────────────────────────────────────────────────────────
   Widget _buildServicesGrid(DashboardProvider dash) {
     if (dash.isLoading) {
-      return const SizedBox(
-        height: 110,
-        child: Center(
-          child: CircularProgressIndicator(color: AppColors.primaryGreen),
-        ),
-      );
-    }
-    if (dash.services.isEmpty) {
-      return Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        child: Text(
-          'Belum ada layanan tersedia.',
-          style: GoogleFonts.poppins(
-            color: AppColors.textSecondary,
-            fontSize: 13,
+      return const SliverToBoxAdapter(
+        child: SizedBox(
+          height: 110,
+          child: Center(
+            child: CircularProgressIndicator(color: AppColors.primaryGreen),
           ),
         ),
       );
     }
-    return SizedBox(
-      height: 110,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        itemCount: dash.services.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 10),
-        itemBuilder: (_, i) => _ServiceChip(service: dash.services[i]),
+    if (dash.services.isEmpty) {
+      return SliverToBoxAdapter(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Text(
+            'Belum ada layanan tersedia.',
+            style: GoogleFonts.poppins(
+              color: AppColors.textSecondary,
+              fontSize: 13,
+            ),
+          ),
+        ),
+      );
+    }
+    return SliverPadding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      sliver: SliverGrid(
+        gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+          maxCrossAxisExtent: 140,
+          mainAxisSpacing: 10,
+          crossAxisSpacing: 10,
+          childAspectRatio: 0.85,
+        ),
+        delegate: SliverChildBuilderDelegate(
+          (_, i) => _ServiceChip(service: dash.services[i]),
+          childCount: dash.services.length,
+        ),
       ),
     );
   }
@@ -369,8 +377,75 @@ class _SummaryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isZero = value == '0';
+    final cardBg = isZero ? const Color(0xFFF8F9FA) : Colors.white;
+    final valueColor = isZero ? Colors.grey.shade400 : AppColors.textPrimary;
+    final iconBgOpacity = isZero ? 0.05 : 0.12;
+    final iconColor = isZero ? Colors.grey.shade400 : color;
+
     return Container(
       padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: cardBg,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.cardBorder, width: 0.8),
+        boxShadow: isZero ? null : [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.06),
+            blurRadius: 14,
+            spreadRadius: 0,
+            offset: const Offset(0, 4),
+          ),
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 4,
+            offset: const Offset(0, 1),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+              color: color.withOpacity(iconBgOpacity),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, color: iconColor, size: 18),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            value,
+            style: GoogleFonts.poppins(
+              fontSize: 20,
+              fontWeight: FontWeight.w700,
+              color: valueColor,
+            ),
+          ),
+          Text(
+            label,
+            style: GoogleFonts.poppins(
+              fontSize: 10,
+              color: isZero ? Colors.grey.shade400 : AppColors.textSecondary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Service Chip ──────────────────────────────────────────────────────────────
+class _ServiceChip extends StatelessWidget {
+  final ServiceModel service;
+  const _ServiceChip({required this.service});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
@@ -393,80 +468,30 @@ class _SummaryCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            width: 34,
-            height: 34,
+            padding: const EdgeInsets.all(6),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.12),
-              borderRadius: BorderRadius.circular(10),
+              color: AppColors.primaryLight,
+              borderRadius: BorderRadius.circular(8),
             ),
-            child: Icon(icon, color: color, size: 18),
-          ),
-          const SizedBox(height: 10),
-          Text(
-            value,
-            style: GoogleFonts.poppins(
-              fontSize: 20,
-              fontWeight: FontWeight.w700,
-              color: AppColors.textPrimary,
+            child: Icon(
+              service.materialIcon,
+              color: AppColors.primaryGreen,
+              size: 20,
             ),
           ),
-          Text(
-            label,
-            style: GoogleFonts.poppins(
-              fontSize: 10,
-              color: AppColors.textSecondary,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ── Service Chip ──────────────────────────────────────────────────────────────
-class _ServiceChip extends StatelessWidget {
-  final ServiceModel service;
-  const _ServiceChip({required this.service});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 114,
-      padding: const EdgeInsets.all(13),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.cardBorder, width: 0.8),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.06),
-            blurRadius: 14,
-            spreadRadius: 0,
-            offset: const Offset(0, 4),
-          ),
-          BoxShadow(
-            color: Colors.black.withOpacity(0.03),
-            blurRadius: 4,
-            offset: const Offset(0, 1),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(service.icon, style: const TextStyle(fontSize: 28)),
           const Spacer(),
           Text(
             service.name,
-            maxLines: 1,
+            maxLines: 2,
             overflow: TextOverflow.ellipsis,
             style: GoogleFonts.poppins(
               fontSize: 11,
               fontWeight: FontWeight.w600,
               color: AppColors.textPrimary,
+              height: 1.2,
             ),
           ),
-          const SizedBox(height: 2),
+          const SizedBox(height: 4),
           Text(
             service.formattedPrice,
             maxLines: 1,
@@ -586,32 +611,80 @@ class _TransactionCard extends StatelessWidget {
 
 // ── Empty State ───────────────────────────────────────────────────────────────
 class _EmptyOrders extends StatelessWidget {
+  const _EmptyOrders();
+
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 24),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.cardBorder),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.cardBorder, width: 0.8),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          const Text('🧺', style: TextStyle(fontSize: 40)),
-          const SizedBox(height: 10),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: const BoxDecoration(
+              color: AppColors.primaryLight,
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.receipt_long_outlined,
+              size: 40,
+              color: AppColors.primaryGreen,
+            ),
+          ),
+          const SizedBox(height: 16),
           Text(
-            'Belum ada pesanan',
+            'Belum ada pesanan nih',
             style: GoogleFonts.poppins(
-              fontWeight: FontWeight.w600,
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
               color: AppColors.textPrimary,
             ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 6),
           Text(
-            'Yuk mulai laundry pertamamu!',
+            'Yuk cuci baju sekarang!',
+            textAlign: TextAlign.center,
             style: GoogleFonts.poppins(
               fontSize: 12,
               color: AppColors.textSecondary,
+            ),
+          ),
+          const SizedBox(height: 20),
+          SizedBox(
+            width: double.infinity,
+            height: 40,
+            child: ElevatedButton(
+              onPressed: () {
+                const TabSwitchNotification(1).dispatch(context);
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primaryGreen,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                elevation: 0,
+              ),
+              child: Text(
+                'Lihat Layanan',
+                style: GoogleFonts.poppins(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
+                ),
+              ),
             ),
           ),
         ],

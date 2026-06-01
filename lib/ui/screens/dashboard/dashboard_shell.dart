@@ -50,10 +50,16 @@ class _DashboardShellState extends State<DashboardShell>
     final goingRight = _currentIndex > _previousIndex;
 
     return Scaffold(
-      body: _TabTransitionView(
-        index:      _currentIndex,
-        goingRight: goingRight,
-        child:      _tabWidgets[_currentIndex],
+      body: NotificationListener<TabSwitchNotification>(
+        onNotification: (notification) {
+          _onTap(notification.index);
+          return true;
+        },
+        child: _TabTransitionView(
+          index:      _currentIndex,
+          goingRight: goingRight,
+          child:      _tabWidgets[_currentIndex],
+        ),
       ),
       bottomNavigationBar: _buildNavBar(),
     );
@@ -337,4 +343,9 @@ class _NavItemState extends State<_NavItem>
       ),
     );
   }
+}
+
+class TabSwitchNotification extends Notification {
+  final int index;
+  const TabSwitchNotification(this.index);
 }

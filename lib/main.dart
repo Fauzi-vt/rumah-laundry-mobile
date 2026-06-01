@@ -39,6 +39,41 @@ class RumahLaundryApp extends StatelessWidget {
         '/register': (_) => const RegisterScreen(),
         '/home':     (_) => const DashboardShell(),
       },
+      builder: (context, child) {
+        return Container(
+          color: const Color(0xFFEEF2F6), // Professional slate grey background for web/desktop background area
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 500),
+              child: ClipRect(
+                child: Builder(
+                  builder: (context) {
+                    final mediaQuery = MediaQuery.of(context);
+                    final constrainedWidth = mediaQuery.size.width > 500 ? 500.0 : mediaQuery.size.width;
+                    return MediaQuery(
+                      data: mediaQuery.copyWith(
+                        size: Size(constrainedWidth, mediaQuery.size.height),
+                      ),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.08),
+                              blurRadius: 24,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: child!,
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }

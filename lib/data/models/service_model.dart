@@ -1,3 +1,5 @@
+import 'package:flutter/material.dart';
+
 class ServiceModel {
   final int    id;
   final String name;
@@ -35,6 +37,18 @@ class ServiceModel {
     if (n.contains('setrika') || c.contains('setrika'))           return '👔';
     if (n.contains('tas') || c.contains('tas'))                   return '👜';
     return '👕';
+  }
+
+  IconData get materialIcon {
+    final n = name.toLowerCase();
+    final c = category.toLowerCase();
+    if (n.contains('sepatu') || c.contains('sepatu'))             return Icons.roller_skating_outlined;
+    if (n.contains('selimut') || n.contains('bedcover') || c.contains('linen')) return Icons.bed_outlined;
+    if (n.contains('kilat') || c.contains('kilat'))               return Icons.bolt_rounded;
+    if (n.contains('karpet') || c.contains('karpet'))             return Icons.texture_rounded;
+    if (n.contains('setrika') || c.contains('setrika'))           return Icons.iron_outlined;
+    if (n.contains('tas') || c.contains('tas'))                   return Icons.shopping_bag_outlined;
+    return Icons.checkroom_outlined;
   }
 
   String get formattedPrice {

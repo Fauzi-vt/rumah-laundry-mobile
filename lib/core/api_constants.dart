@@ -1,9 +1,13 @@
+import 'package:flutter/foundation.dart';
+
 class ApiConstants {
   // Laravel API Configuration
   // 10.0.2.2 is the special IP address to access localhost of host machine from Android Emulator.
   // Use '127.0.0.1' or 'localhost' if running on a web/desktop client or iOS Simulator.
   // Use machine's local IP (e.g. 192.168.1.x) if testing on physical devices on the same Wi-Fi.
-  static const String baseUrl = 'http://10.0.2.2:8000/api';
+  static const String baseUrl = kIsWeb
+      ? 'http://127.0.0.1:8000/api'
+      : 'http://10.0.2.2:8000/api';
 
   // Endpoints
   static const String login = '$baseUrl/login';
