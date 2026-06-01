@@ -1,9 +1,20 @@
 class ApiConstants {
-  // Supabase Configuration
-  static const String supabaseUrl = 'https://ingxtyqcqdiidhievrox.supabase.co';
-  static const String supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImluZ3h0eXFjcWRpaWRoaWV2cm94Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc3Mzg1NjAsImV4cCI6MjA5MzMxNDU2MH0.AeIPS280yVvnsp0C3dF8XesxVEpQdNWd3faKnOFfP5k';
+  // Laravel API Configuration
+  // 10.0.2.2 is the special IP address to access localhost of host machine from Android Emulator.
+  // Use '127.0.0.1' or 'localhost' if running on a web/desktop client or iOS Simulator.
+  // Use machine's local IP (e.g. 192.168.1.x) if testing on physical devices on the same Wi-Fi.
+  static const String baseUrl = 'http://10.0.2.2:8000/api';
+
+  // Endpoints
+  static const String login = '$baseUrl/login';
+  static const String register = '$baseUrl/register';
+  static const String logout = '$baseUrl/logout';
+  static const String user = '$baseUrl/user';
+  static const String profile = '$baseUrl/profile';
+  static const String services = '$baseUrl/services';
+  static const String transactions = '$baseUrl/transactions';
+  static const String orders = '$baseUrl/orders';
 
   // Tracking (Public)
-  // Anda bisa menyimpan ini jika masih menggunakan tracking via URL manual
-  static String track(String invoiceCode) => '$supabaseUrl/track/$invoiceCode';
+  static String track(String invoiceCode) => '$baseUrl/track/$invoiceCode';
 }

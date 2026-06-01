@@ -56,14 +56,15 @@ class AuthProvider extends ChangeNotifier {
   }) async {
     _setLoading();
     try {
-      _user = await _service.register(
+      await _service.register(
         name:                 name,
         email:                email,
         password:             password,
         passwordConfirmation: passwordConfirmation,
         phone:                phone,
       );
-      _status = AuthStatus.authenticated;
+      _user = null;
+      _status = AuthStatus.unauthenticated;
       notifyListeners();
       return true;
     } catch (e) {

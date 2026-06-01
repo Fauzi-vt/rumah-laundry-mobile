@@ -62,7 +62,22 @@ class _RegisterScreenState extends State<RegisterScreen>
     if (!mounted) return;
 
     if (ok) {
-      Navigator.of(context).pushReplacementNamed('/home');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Registrasi berhasil! Silakan masuk dengan akun Anda.',
+            style: GoogleFonts.poppins(color: Colors.white),
+          ),
+          backgroundColor: AppColors.primaryGreen,
+          behavior: SnackBarBehavior.floating,
+          margin: const EdgeInsets.all(16),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      );
+      Navigator.of(context).pushReplacementNamed(
+        '/login',
+        arguments: _emailCtrl.text.trim(),
+      );
     } else {
       _showError(auth.errorMessage ?? 'Registrasi gagal.');
       auth.clearError();

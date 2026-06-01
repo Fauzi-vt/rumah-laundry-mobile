@@ -1,52 +1,63 @@
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import '../../core/api_constants.dart';
+import 'auth_service.dart';
 import '../models/service_model.dart';
 import '../models/transaction_model.dart';
 import '../models/user_model.dart';
 
 class LaundryService {
-  final _supabase = Supabase.instance.client;
+  final _authService = AuthService();
 
   // ── Services ──────────────────────────────────────────────────────────────
   Future<List<ServiceModel>> getServices() async {
     try {
-      final response = await _supabase
-          .from('services')
-          .select();
-      
-      final list = response as List? ?? [];
+      final token = await _authService.getToken();
+      final response = await http.get(
+        Uri.parse(ApiConstants.services),
+        headers: {
+          'Content-Type': 'application/json',
+          if (token != null) 'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (response.statusCode != 200) {
+        throw Exception('Gagal memuat layanan: Server mengembalikan status ${response.statusCode}');
+      }
+
+      final Map<String, dynamic> body = jsonDecode(response.body);
+      final List list = body['data'] as List? ?? [];
       return list.map((e) => ServiceModel.fromJson(e as Map<String, dynamic>)).toList();
     } catch (e) {
-      throw Exception('Gagal memuat layanan: ${e.toString()}');
+      throw Exception('Gagal memuat layanan: ${e.toString().replaceFirst('Exception: ', '')}');
     }
   }
 
   // ── Transactions ──────────────────────────────────────────────────────────
   Future<List<TransactionModel>> getTransactions() async {
     try {
-      final userAuth = _supabase.auth.currentUser;
-      if (userAuth == null) throw Exception('Sesi login tidak ditemukan. Silakan login kembali untuk melihat pesanan.');
+      final token = await _authService.getToken();
+      if (token == null) {
+        throw Exception('Sesi login tidak ditemukan. Silakan login kembali untuk melihat pesanan.');
+      }
 
-      // 1. Ambil ID (int) dari tabel public.users berdasarkan email auth
-      final profile = await _supabase
-          .from('users')
-          .select('id')
-          .eq('email', userAuth.email as String)
-          .maybeSingle();
-      
-      if (profile == null) return [];
-      final int userIdInt = profile['id'];
+      final response = await http.get(
+        Uri.parse(ApiConstants.transactions),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
 
-      // 2. Gunakan ID int untuk mengambil transaksi
-      final response = await _supabase
-          .from('transactions')
-          .select('*, details:transaction_details(*, service:services(*))')
-          .eq('user_id', userIdInt)
-          .order('created_at', ascending: false);
-      
-      final list = response as List? ?? [];
+      if (response.statusCode != 200) {
+        throw Exception('Gagal memuat pesanan: Server mengembalikan status ${response.statusCode}');
+      }
+
+      final Map<String, dynamic> body = jsonDecode(response.body);
+      final List list = body['data'] as List? ?? [];
       return list.map((e) => TransactionModel.fromJson(e as Map<String, dynamic>)).toList();
     } catch (e) {
-      throw Exception('Gagal memuat pesanan: ${e.toString()}');
+      throw Exception('Gagal memuat pesanan: ${e.toString().replaceFirst('Exception: ', '')}');
     }
   }
 
@@ -59,71 +70,40 @@ class LaundryService {
     required String deliveryType,
   }) async {
     try {
-      final userAuth = _supabase.auth.currentUser;
-      if (userAuth == null) throw Exception('Sesi login tidak ditemukan. Silakan login kembali untuk membuat pesanan.');
-
-      // Ambil ID int dari profil
-      final profile = await _supabase
-          .from('users')
-          .select('id')
-          .eq('email', userAuth.email as String)
-          .single();
-      
-      final int userIdInt = profile['id'];
-
-      // Generate invoice code (Contoh: INV-20240508-123456)
-      final now = DateTime.now();
-      final dateStr = "${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}";
-      final timeStr = "${now.hour}${now.minute}${now.second}";
-      final invoiceCode = "INV-$dateStr-$timeStr";
-
-      // Calculate total price from items
-      double totalPrice = 0;
-      for (var item in items) {
-        totalPrice += (item['price'] ?? 0) * (item['quantity'] ?? 0);
+      final token = await _authService.getToken();
+      if (token == null) {
+        throw Exception('Sesi login tidak ditemukan. Silakan login kembali untuk membuat pesanan.');
       }
 
-      // 1. Create the transaction record
-      final transactionData = {
-        'user_id': userIdInt,
-        'invoice_code': invoiceCode,
-        'total_price': totalPrice, // Tambahkan total_price
+      final body = {
+        'items': items.map((item) => {
+          'service_id': item['service_id'],
+          'quantity': item['quantity'],
+        }).toList(),
         'address': address,
         'phone': phone,
         'payment_method': paymentMethod,
         'delivery_type': deliveryType,
-        'status': 'baru', // Ganti 'pending' menjadi 'baru'
-        'created_at': now.toIso8601String(),
       };
 
-      final transaction = await _supabase
-          .from('transactions')
-          .insert(transactionData)
-          .select()
-          .single();
+      final response = await http.post(
+        Uri.parse(ApiConstants.orders),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode(body),
+      );
 
-      final transactionId = transaction['id'];
+      if (response.statusCode != 201) {
+        final errorData = jsonDecode(response.body);
+        throw Exception(errorData['message'] ?? 'Gagal membuat pesanan');
+      }
 
-      // 2. Insert items (transaction details)
-      final details = items.map((item) {
-        final double price = (item['price'] ?? 0).toDouble();
-        final double qty = (item['quantity'] ?? 0).toDouble();
-        return {
-          'transaction_id': transactionId,
-          'service_id': item['service_id'],
-          'quantity': qty,
-          'price': price, // Tambahkan price
-          'subtotal': price * qty, // Tambahkan subtotal
-        };
-      }).toList();
-
-      await _supabase.from('transaction_details').insert(details);
-
-      // 3. Return full transaction model
-      // We might want to re-fetch it with details or just construct it.
-      return TransactionModel.fromJson(transaction);
+      final Map<String, dynamic> data = jsonDecode(response.body);
+      return TransactionModel.fromJson(data['data'] as Map<String, dynamic>);
     } catch (e) {
-      throw Exception('Gagal membuat pesanan: ${e.toString()}');
+      throw Exception('Gagal membuat pesanan: ${e.toString().replaceFirst('Exception: ', '')}');
     }
   }
 
@@ -135,26 +115,36 @@ class LaundryService {
     String? address,
   }) async {
     try {
-      final user = _supabase.auth.currentUser;
-      if (user == null) throw Exception('Sesi login tidak ditemukan. Silakan login kembali untuk memperbarui profil.');
+      final token = await _authService.getToken();
+      if (token == null) {
+        throw Exception('Sesi login tidak ditemukan. Silakan login kembali untuk memperbarui profil.');
+      }
 
-      final updateData = {
+      final body = {
         'name': name,
         'email': email,
         if (phone != null) 'phone': phone,
         if (address != null) 'address': address,
       };
 
-      final updated = await _supabase
-          .from('users')
-          .update(updateData)
-          .eq('email', email) // or use id if synced
-          .select()
-          .single();
+      final response = await http.put(
+        Uri.parse(ApiConstants.profile),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode(body),
+      );
 
-      return UserModel.fromJson(updated);
+      if (response.statusCode != 200) {
+        final errorData = jsonDecode(response.body);
+        throw Exception(errorData['message'] ?? 'Gagal memperbarui profil');
+      }
+
+      final Map<String, dynamic> data = jsonDecode(response.body);
+      return UserModel.fromJson(data['user'] as Map<String, dynamic>);
     } catch (e) {
-      throw Exception('Gagal memperbarui profil: ${e.toString()}');
+      throw Exception('Gagal memperbarui profil: ${e.toString().replaceFirst('Exception: ', '')}');
     }
   }
 }

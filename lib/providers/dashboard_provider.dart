@@ -8,29 +8,28 @@ import '../data/services/laundry_service.dart';
 enum DashboardStatus { initial, loading, loaded, error }
 
 class DashboardProvider extends ChangeNotifier {
-  DashboardStatus        _status       = DashboardStatus.initial;
-  String?                _error;
-  List<ServiceModel>     _services     = [];
+  DashboardStatus _status = DashboardStatus.initial;
+  String? _error;
+  List<ServiceModel> _services = [];
   List<TransactionModel> _transactions = [];
-  bool                   _orderLoading = false;
-  bool                   _profileLoading = false;
+  bool _orderLoading = false;
+  bool _profileLoading = false;
 
-  DashboardStatus        get status          => _status;
-  String?                get error           => _error;
-  List<ServiceModel>     get services        => _services;
-  List<TransactionModel> get transactions    => _transactions;
-  bool                   get isLoading       => _status == DashboardStatus.loading;
-  bool                   get orderLoading    => _orderLoading;
-  bool                   get profileLoading  => _profileLoading;
+  DashboardStatus get status => _status;
+  String? get error => _error;
+  List<ServiceModel> get services => _services;
+  List<TransactionModel> get transactions => _transactions;
+  bool get isLoading => _status == DashboardStatus.loading;
+  bool get orderLoading => _orderLoading;
+  bool get profileLoading => _profileLoading;
 
   // ── Derived lists matching Laravel UserDashboardController ────────────────
   List<TransactionModel> get activeOrders => _transactions
       .where((t) => ['baru', 'cuci', 'kering', 'setrika'].contains(t.status))
       .toList();
 
-  List<TransactionModel> get pendingPayments => _transactions
-      .where((t) => t.status == 'baru')
-      .toList();
+  List<TransactionModel> get pendingPayments =>
+      _transactions.where((t) => t.status == 'baru').toList();
 
   List<TransactionModel> get inProgressOrders => _transactions
       .where((t) => ['cuci', 'kering', 'setrika'].contains(t.status))
@@ -45,12 +44,15 @@ class DashboardProvider extends ChangeNotifier {
   // ── Load ──────────────────────────────────────────────────────────────────
   Future<void> load() async {
     _status = DashboardStatus.loading;
-    _error  = null;
+    _error = null;
     notifyListeners();
     try {
       final svc = LaundryService();
-      final results = await Future.wait([svc.getServices(), svc.getTransactions()]);
-      _services     = results[0] as List<ServiceModel>;
+      final results = await Future.wait([
+        svc.getServices(),
+        svc.getTransactions(),
+      ]);
+      _services = results[0] as List<ServiceModel>;
       _transactions = (results[1] as List<TransactionModel>)
         ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
       _status = DashboardStatus.loaded;
@@ -110,7 +112,11 @@ class DashboardProvider extends ChangeNotifier {
     notifyListeners();
     try {
       final user = await LaundryService().updateProfile(
-        name: name, email: email, phone: phone, address: address);
+        name: name,
+        email: email,
+        phone: phone,
+        address: address,
+      );
       _profileLoading = false;
       notifyListeners();
       return (user, null);
