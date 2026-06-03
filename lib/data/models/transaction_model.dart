@@ -38,6 +38,8 @@ class TransactionModel {
   final String? phone;
   final String? paymentMethod;
   final String? deliveryType;
+  final String? paymentProof;
+  final String? paymentProofUrl;
   final List<TransactionDetailModel> details;
 
   const TransactionModel({
@@ -50,6 +52,8 @@ class TransactionModel {
     this.phone,
     this.paymentMethod,
     this.deliveryType,
+    this.paymentProof,
+    this.paymentProofUrl,
     required this.details,
   });
 
@@ -63,6 +67,8 @@ class TransactionModel {
     phone: j['phone'] as String?,
     paymentMethod: j['payment_method'] as String?,
     deliveryType: j['delivery_type'] as String?,
+    paymentProof: j['payment_proof'] as String?,
+    paymentProofUrl: j['payment_proof_url'] as String?,
     details: (j['details'] as List? ?? [])
         .map((d) => TransactionDetailModel.fromJson(d as Map<String, dynamic>))
         .toList(),

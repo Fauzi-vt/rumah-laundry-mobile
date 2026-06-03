@@ -337,6 +337,8 @@ class _ServiceCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final hasImage = service.imageUrl != null && service.imageUrl!.isNotEmpty;
+
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(14),
@@ -361,13 +363,41 @@ class _ServiceCard extends StatelessWidget {
               color: AppColors.primaryLight,
               borderRadius: BorderRadius.circular(14),
             ),
-            child: Center(
-              child: Icon(
-                service.materialIcon,
-                color: AppColors.primaryGreen,
-                size: 24,
-              ),
-            ),
+            clipBehavior: Clip.hardEdge,
+            child: hasImage
+                ? Image.network(
+                    service.imageUrl!,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) {
+                      return Center(
+                        child: Icon(
+                          service.materialIcon,
+                          color: AppColors.primaryGreen,
+                          size: 24,
+                        ),
+                      );
+                    },
+                    loadingBuilder: (context, child, loadingProgress) {
+                      if (loadingProgress == null) return child;
+                      return Center(
+                        child: SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: AppColors.primaryGreen.withOpacity(0.5),
+                          ),
+                        ),
+                      );
+                    },
+                  )
+                : Center(
+                    child: Icon(
+                      service.materialIcon,
+                      color: AppColors.primaryGreen,
+                      size: 24,
+                    ),
+                  ),
           ),
           const SizedBox(width: 14),
           Expanded(

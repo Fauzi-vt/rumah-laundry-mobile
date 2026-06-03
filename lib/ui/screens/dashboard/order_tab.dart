@@ -3,7 +3,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../../../core/app_colors.dart';
 import '../../../data/models/service_model.dart';
-import '../../../data/models/transaction_model.dart';
 import '../../../providers/dashboard_provider.dart';
 import 'checkout_screen.dart';
 
@@ -15,22 +14,10 @@ class OrderTab extends StatefulWidget {
 }
 
 class _OrderTabState extends State<OrderTab> {
-  // cart: serviceId -> quantity
-  final Map<int, double> _cart = {};
-
-  double totalPrice(List<ServiceModel> services) {
-    double total = 0;
-    for (final s in services) {
-      final qty = _cart[s.id] ?? 0;
-      total += s.price * qty;
-    }
-    return total;
-  }
-
-  int get cartItemCount => _cart.values.where((q) => q > 0).length;
 
   void _goToCheckout(BuildContext context) async {
-    final items = _cart.entries
+    final dash = context.read<DashboardProvider>();
+    final items = dash.cart.entries
         .where((e) => e.value > 0)
         .map((e) => {'service_id': e.key, 'quantity': e.value})
         .toList();
@@ -40,18 +27,15 @@ class _OrderTabState extends State<OrderTab> {
       return;
     }
 
-    final dash = context.read<DashboardProvider>();
-    final services = dash.services;
-
-    final success = await Navigator.of(context).push(
+    await Navigator.of(context).push(
       PageRouteBuilder(
         pageBuilder: (_, __, ___) => CheckoutScreen(
           items: items,
-          totalEstimasi: totalPrice(services),
+          totalEstimasi: dash.totalCartPrice,
           onCheckoutSuccess: () {
-            if (mounted) setState(() => _cart.clear());
+            dash.clearCart();
           },
-          cartItemCount: cartItemCount,
+          cartItemCount: dash.cartItemCount,
         ),
         transitionsBuilder: (_, anim, __, child) {
           final slide = Tween<Offset>(
@@ -62,9 +46,6 @@ class _OrderTabState extends State<OrderTab> {
         },
       ),
     );
-
-    // success is true if user cancels and we don't clear? No, we clear it inside the callback.
-    // So we don't need this check anymore.
   }
 
   void _showSnack(BuildContext context, String msg, {bool isError = false}) {
@@ -79,9 +60,7 @@ class _OrderTabState extends State<OrderTab> {
 
   @override
   Widget build(BuildContext context) {
-    final dash     = context.watch<DashboardProvider>();
-    final services = dash.services;
-    final isLoading = dash.orderLoading;
+    final dash = context.watch<DashboardProvider>();
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -91,7 +70,7 @@ class _OrderTabState extends State<OrderTab> {
         foregroundColor: Colors.white,
         elevation: 0,
         actions: [
-          if (cartItemCount > 0)
+          if (dash.cartItemCount > 0)
             Padding(
               padding: const EdgeInsets.only(right: 16),
               child: Center(
@@ -100,7 +79,7 @@ class _OrderTabState extends State<OrderTab> {
                   decoration: BoxDecoration(
                       color: Colors.white.withOpacity(0.2),
                       borderRadius: BorderRadius.circular(12)),
-                  child: Text('$cartItemCount item',
+                  child: Text('${dash.cartItemCount} item',
                       style: GoogleFonts.poppins(
                           fontSize: 12, color: Colors.white,
                           fontWeight: FontWeight.w600)),
@@ -115,9 +94,9 @@ class _OrderTabState extends State<OrderTab> {
               ? _buildErrorState(context, dash.error!)
               : Column(
                   children: [
-                    Expanded(child: _buildServiceList(services)),
-                    if (cartItemCount > 0)
-                      _buildOrderSummary(context, services, isLoading),
+                    Expanded(child: _buildServiceList(dash)),
+                    if (dash.cartItemCount > 0)
+                      _buildOrderSummary(context, dash),
                   ],
                 ),
     );
@@ -154,7 +133,8 @@ class _OrderTabState extends State<OrderTab> {
     );
   }
 
-  Widget _buildServiceList(List<ServiceModel> services) {
+  Widget _buildServiceList(DashboardProvider dash) {
+    final services = dash.services;
     if (services.isEmpty) {
       return Center(
         child: Text('Belum ada layanan tersedia.',
@@ -195,10 +175,10 @@ class _OrderTabState extends State<OrderTab> {
           const SizedBox(height: 8),
           ...entry.value.map((s) => _ServiceOrderRow(
                 service: s,
-                quantity: _cart[s.id] ?? 0,
-                onChanged: (q) => setState(() => _cart[s.id] = q),
+                quantity: dash.cart[s.id] ?? 0,
+                onChanged: (q) => dash.updateCart(s.id, q),
               )),
-          const SizedBox(height: 12),
+          const SizedBox(height: 24),
         ]),
         const SizedBox(height: 100),
       ],
@@ -220,55 +200,85 @@ class _OrderTabState extends State<OrderTab> {
     ]);
   }
 
-  Widget _buildOrderSummary(
-      BuildContext context, List<ServiceModel> services, bool isLoading) {
-    final total = totalPrice(services);
+  Widget _buildOrderSummary(BuildContext context, DashboardProvider dash) {
+    final total = dash.totalCartPrice;
     final formatted = total.toInt().toString().replaceAllMapped(
         RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.');
 
     return Container(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-        boxShadow: [BoxShadow(
-            color: Colors.black.withOpacity(0.08),
-            blurRadius: 16, offset: const Offset(0, -4))],
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primaryGreen.withOpacity(0.12),
+            blurRadius: 20,
+            offset: const Offset(0, 4),
+          ),
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+        border: Border.all(color: AppColors.primaryGreen.withOpacity(0.1), width: 0.8),
       ),
       child: SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
+        top: false,
+        bottom: true,
+        child: Row(
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text('Total Estimasi',
-                      style: GoogleFonts.poppins(
-                          fontSize: 11, color: AppColors.textSecondary)),
-                  Text('Rp $formatted',
-                      style: GoogleFonts.poppins(
-                          fontSize: 18, fontWeight: FontWeight.w800,
-                          color: AppColors.primaryGreen)),
-                ]),
-                Text('$cartItemCount layanan dipilih',
+            Expanded(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Rp $formatted',
                     style: GoogleFonts.poppins(
-                        fontSize: 11, color: AppColors.textSecondary)),
-              ],
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.primaryGreen,
+                    ),
+                  ),
+                  Text(
+                    '${dash.cartItemCount} Layanan dipilih',
+                    style: GoogleFonts.poppins(
+                      fontSize: 11,
+                      color: AppColors.textSecondary,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
             ),
-            const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity, height: 50,
-              child: ElevatedButton(
-                onPressed: isLoading ? null : () => _goToCheckout(context),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primaryGreen,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            const SizedBox(width: 12),
+            ElevatedButton(
+              onPressed: dash.orderLoading ? null : () => _goToCheckout(context),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primaryGreen,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
                 ),
-                child: Text('Lanjutkan ke Checkout',
+                elevation: 0,
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Checkout',
                     style: GoogleFonts.poppins(
-                        fontSize: 14, fontWeight: FontWeight.w700)),
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  const Icon(Icons.arrow_forward_rounded, size: 16),
+                ],
               ),
             ),
           ],
@@ -305,8 +315,35 @@ class _ServiceOrderRow extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Text(service.icon, style: const TextStyle(fontSize: 22)),
-          const SizedBox(width: 10),
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: AppColors.primaryLight,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            clipBehavior: Clip.hardEdge,
+            child: service.imageUrl != null && service.imageUrl!.isNotEmpty
+                ? Image.network(
+                    service.imageUrl!,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) {
+                      return Center(
+                        child: Text(
+                          service.icon,
+                          style: const TextStyle(fontSize: 20),
+                        ),
+                      );
+                    },
+                  )
+                : Center(
+                    child: Text(
+                      service.icon,
+                      style: const TextStyle(fontSize: 20),
+                    ),
+                  ),
+          ),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -340,6 +377,10 @@ class _QuantityStepper extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final step = unit == 'kg' ? 0.5 : 1.0;
+    final String formattedQty = unit == 'kg'
+        ? quantity.toStringAsFixed(1).replaceAll('.0', '')
+        : quantity.toInt().toString();
+
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -351,17 +392,15 @@ class _QuantityStepper extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8),
             child: Text(
-              unit == 'kg'
-                  ? '${quantity.toStringAsFixed(1)} $unit'
-                  : '${quantity.toInt()} $unit',
+              formattedQty,
               style: GoogleFonts.poppins(
-                  fontSize: 12, fontWeight: FontWeight.w600,
+                  fontSize: 13, fontWeight: FontWeight.w700,
                   color: AppColors.textPrimary),
             ),
           ),
         ],
         _Btn(
-          icon: quantity > 0 ? Icons.add : Icons.add,
+          icon: Icons.add,
           onTap: () => onChanged(quantity + step),
           filled: quantity == 0,
         ),
@@ -380,11 +419,21 @@ class _Btn extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
-      child: Container(
-        width: 30, height: 30,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        width: 32, height: 32,
         decoration: BoxDecoration(
           color: filled ? AppColors.primaryGreen : AppColors.primaryLight,
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(10),
+          boxShadow: filled
+              ? [
+                  BoxShadow(
+                    color: AppColors.primaryGreen.withOpacity(0.3),
+                    blurRadius: 6,
+                    offset: const Offset(0, 2),
+                  )
+                ]
+              : null,
         ),
         child: Icon(icon,
             size: 16,

@@ -8,7 +8,6 @@ import 'providers/dashboard_provider.dart';
 import 'ui/screens/auth/login_screen.dart';
 import 'ui/screens/auth/register_screen.dart';
 import 'ui/screens/dashboard/dashboard_shell.dart';
-import 'core/api_constants.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();

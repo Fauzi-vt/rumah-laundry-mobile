@@ -1,5 +1,7 @@
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../core/app_colors.dart';
@@ -20,6 +22,8 @@ class _ProfileTabState extends State<ProfileTab> {
   late TextEditingController _email;
   late TextEditingController _phone;
   late TextEditingController _address;
+  Uint8List? _selectedImageBytes;
+  String? _selectedImageFileName;
 
   @override
   void initState() {
@@ -38,6 +42,28 @@ class _ProfileTabState extends State<ProfileTab> {
     super.dispose();
   }
 
+  Future<void> _pickImage() async {
+    try {
+      final ImagePicker picker = ImagePicker();
+      final XFile? image = await picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 512,
+        maxHeight: 512,
+        imageQuality: 85,
+      );
+
+      if (image != null) {
+        final bytes = await image.readAsBytes();
+        setState(() {
+          _selectedImageBytes = bytes;
+          _selectedImageFileName = image.name;
+        });
+      }
+    } catch (e) {
+      _showSnack('Gagal memilih gambar: $e', isError: true);
+    }
+  }
+
   Future<void> _saveProfile() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -49,12 +75,18 @@ class _ProfileTabState extends State<ProfileTab> {
       email:   _email.text.trim(),
       phone:   _phone.text.trim(),
       address: _address.text.trim(),
+      avatarBytes: _selectedImageBytes,
+      avatarFileName: _selectedImageFileName,
     );
 
     if (!mounted) return;
     if (err == null && user != null) {
       await auth.updateUser(user);
-      setState(() => _editing = false);
+      setState(() {
+        _editing = false;
+        _selectedImageBytes = null;
+        _selectedImageFileName = null;
+      });
       _showSnack('Profil berhasil diperbarui!');
     } else {
       _showSnack(err ?? 'Gagal memperbarui profil.', isError: true);
@@ -87,7 +119,11 @@ class _ProfileTabState extends State<ProfileTab> {
         actions: [
           TextButton(
             onPressed: _editing
-                ? () => setState(() => _editing = false)
+                ? () => setState(() {
+                      _editing = false;
+                      _selectedImageBytes = null;
+                      _selectedImageFileName = null;
+                    })
                 : () => setState(() => _editing = true),
             child: Text(
               _editing ? 'Batal' : 'Edit',
@@ -105,13 +141,44 @@ class _ProfileTabState extends State<ProfileTab> {
             color: AppColors.primaryGreen,
             padding: const EdgeInsets.fromLTRB(20, 0, 20, 28),
             child: Column(children: [
-              CircleAvatar(
-                radius: 40,
-                backgroundColor: Colors.white.withOpacity(0.2),
-                child: Text(initial,
-                    style: GoogleFonts.poppins(
-                        fontSize: 30, fontWeight: FontWeight.w700,
-                        color: Colors.white)),
+              GestureDetector(
+                onTap: _editing ? _pickImage : null,
+                child: Stack(
+                  children: [
+                    CircleAvatar(
+                      radius: 40,
+                      backgroundColor: Colors.white.withOpacity(0.2),
+                      backgroundImage: _selectedImageBytes != null
+                          ? MemoryImage(_selectedImageBytes!)
+                          : (user?.avatarUrl != null
+                              ? NetworkImage(user!.avatarUrl!)
+                              : null) as ImageProvider?,
+                      child: (_selectedImageBytes == null && user?.avatarUrl == null)
+                          ? Text(initial,
+                              style: GoogleFonts.poppins(
+                                  fontSize: 30, fontWeight: FontWeight.w700,
+                                  color: Colors.white))
+                          : null,
+                    ),
+                    if (_editing)
+                      Positioned(
+                        right: 0,
+                        bottom: 0,
+                        child: Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: const BoxDecoration(
+                            color: Colors.white,
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.camera_alt,
+                            size: 16,
+                            color: AppColors.primaryGreen,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
               ),
               const SizedBox(height: 12),
               Text(user?.name ?? '-',

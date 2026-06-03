@@ -2,7 +2,6 @@ import 'package:flutter/foundation.dart';
 import '../data/models/service_model.dart';
 import '../data/models/transaction_model.dart';
 import '../data/models/user_model.dart';
-import '../data/services/auth_service.dart';
 import '../data/services/laundry_service.dart';
 
 enum DashboardStatus { initial, loading, loaded, error }
@@ -15,6 +14,9 @@ class DashboardProvider extends ChangeNotifier {
   bool _orderLoading = false;
   bool _profileLoading = false;
 
+  // Cart state: serviceId -> quantity
+  final Map<int, double> _cart = {};
+
   DashboardStatus get status => _status;
   String? get error => _error;
   List<ServiceModel> get services => _services;
@@ -22,6 +24,32 @@ class DashboardProvider extends ChangeNotifier {
   bool get isLoading => _status == DashboardStatus.loading;
   bool get orderLoading => _orderLoading;
   bool get profileLoading => _profileLoading;
+
+  Map<int, double> get cart => _cart;
+  int get cartItemCount => _cart.values.where((q) => q > 0).length;
+
+  double get totalCartPrice {
+    double total = 0;
+    for (final s in _services) {
+      final qty = _cart[s.id] ?? 0;
+      total += s.price * qty;
+    }
+    return total;
+  }
+
+  void updateCart(int serviceId, double quantity) {
+    if (quantity <= 0) {
+      _cart.remove(serviceId);
+    } else {
+      _cart[serviceId] = quantity;
+    }
+    notifyListeners();
+  }
+
+  void clearCart() {
+    _cart.clear();
+    notifyListeners();
+  }
 
   // ── Derived lists matching Laravel UserDashboardController ────────────────
   List<TransactionModel> get activeOrders => _transactions
@@ -107,6 +135,8 @@ class DashboardProvider extends ChangeNotifier {
     required String email,
     String? phone,
     String? address,
+    List<int>? avatarBytes,
+    String? avatarFileName,
   }) async {
     _profileLoading = true;
     notifyListeners();
@@ -116,6 +146,8 @@ class DashboardProvider extends ChangeNotifier {
         email: email,
         phone: phone,
         address: address,
+        avatarBytes: avatarBytes,
+        avatarFileName: avatarFileName,
       );
       _profileLoading = false;
       notifyListeners();
@@ -124,6 +156,36 @@ class DashboardProvider extends ChangeNotifier {
       _profileLoading = false;
       notifyListeners();
       return (null, e.toString().replaceFirst('Exception: ', ''));
+    }
+  }
+
+  // ── Upload Payment Proof ──────────────────────────────────────────────────
+  Future<String?> uploadPaymentProof({
+    required int transactionId,
+    required List<int> bytes,
+    required String filename,
+  }) async {
+    _orderLoading = true;
+    notifyListeners();
+    try {
+      final updatedTrx = await LaundryService().uploadPaymentProof(
+        transactionId: transactionId,
+        imageBytes: bytes,
+        fileName: filename,
+      );
+      
+      final idx = _transactions.indexWhere((t) => t.id == transactionId);
+      if (idx != -1) {
+        _transactions[idx] = updatedTrx;
+      }
+      
+      _orderLoading = false;
+      notifyListeners();
+      return null;
+    } catch (e) {
+      _orderLoading = false;
+      notifyListeners();
+      return e.toString().replaceFirst('Exception: ', '');
     }
   }
 }

@@ -1,3 +1,5 @@
+import '../../core/api_constants.dart';
+
 class UserModel {
   final int     id;
   final String  name;
@@ -5,6 +7,7 @@ class UserModel {
   final String? phone;
   final String? address;
   final String? role;
+  final String? avatarUrl;
 
   const UserModel({
     required this.id,
@@ -13,23 +16,26 @@ class UserModel {
     this.phone,
     this.address,
     this.role,
+    this.avatarUrl,
   });
 
   factory UserModel.fromJson(Map<String, dynamic> j) => UserModel(
-        id:      j['id']      as int,
-        name:    j['name']    as String,
-        email:   j['email']   as String,
-        phone:   j['phone']   as String?,
-        address: j['address'] as String?,
-        role:    j['role']    as String?,
+        id:        j['id']          as int,
+        name:      j['name']        as String,
+        email:     j['email']       as String,
+        phone:     j['phone']       as String?,
+        address:   j['address']     as String?,
+        role:      j['role']        as String?,
+        avatarUrl: ApiConstants.normalizeUrl(j['avatar_url'] as String?),
       );
 
   Map<String, dynamic> toJson() => {
-        'id':      id,
-        'name':    name,
-        'email':   email,
-        'phone':   phone,
-        'address': address,
-        'role':    role,
+        'id':         id,
+        'name':       name,
+        'email':      email,
+        'phone':      phone,
+        'address':    address,
+        'role':       role,
+        'avatar_url': avatarUrl,
       };
 }

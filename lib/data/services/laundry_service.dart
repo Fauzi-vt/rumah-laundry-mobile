@@ -113,6 +113,8 @@ class LaundryService {
     required String email,
     String? phone,
     String? address,
+    List<int>? avatarBytes,
+    String? avatarFileName,
   }) async {
     try {
       final token = await _authService.getToken();
@@ -120,21 +122,33 @@ class LaundryService {
         throw Exception('Sesi login tidak ditemukan. Silakan login kembali untuk memperbarui profil.');
       }
 
-      final body = {
-        'name': name,
-        'email': email,
-        if (phone != null) 'phone': phone,
-        if (address != null) 'address': address,
-      };
+      final uri = Uri.parse(ApiConstants.profile);
+      final request = http.MultipartRequest('POST', uri);
 
-      final response = await http.put(
-        Uri.parse(ApiConstants.profile),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-        body: jsonEncode(body),
-      );
+      request.headers.addAll({
+        'Authorization': 'Bearer $token',
+        'Accept': 'application/json',
+      });
+
+      // Laravel workaround: PUT requests with multipart files must be sent as POST with _method = PUT
+      request.fields['_method'] = 'PUT';
+      request.fields['name'] = name;
+      request.fields['email'] = email;
+      if (phone != null) request.fields['phone'] = phone;
+      if (address != null) request.fields['address'] = address;
+
+      if (avatarBytes != null && avatarFileName != null) {
+        request.files.add(
+          http.MultipartFile.fromBytes(
+            'avatar',
+            avatarBytes,
+            filename: avatarFileName,
+          ),
+        );
+      }
+
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
 
       if (response.statusCode != 200) {
         final errorData = jsonDecode(response.body);
@@ -145,6 +159,49 @@ class LaundryService {
       return UserModel.fromJson(data['user'] as Map<String, dynamic>);
     } catch (e) {
       throw Exception('Gagal memperbarui profil: ${e.toString().replaceFirst('Exception: ', '')}');
+    }
+  }
+
+  // ── Upload Payment Proof ──────────────────────────────────────────────────
+  Future<TransactionModel> uploadPaymentProof({
+    required int transactionId,
+    required List<int> imageBytes,
+    required String fileName,
+  }) async {
+    try {
+      final token = await _authService.getToken();
+      if (token == null) {
+        throw Exception('Sesi login tidak ditemukan. Silakan login kembali.');
+      }
+
+      final uri = Uri.parse('${ApiConstants.baseUrl}/transactions/$transactionId/payment-proof');
+      final request = http.MultipartRequest('POST', uri);
+
+      request.headers.addAll({
+        'Authorization': 'Bearer $token',
+        'Accept': 'application/json',
+      });
+
+      request.files.add(
+        http.MultipartFile.fromBytes(
+          'payment_proof',
+          imageBytes,
+          filename: fileName,
+        ),
+      );
+
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+
+      if (response.statusCode != 200) {
+        final errorData = jsonDecode(response.body);
+        throw Exception(errorData['message'] ?? 'Gagal mengunggah bukti pembayaran');
+      }
+
+      final Map<String, dynamic> data = jsonDecode(response.body);
+      return TransactionModel.fromJson(data['data'] as Map<String, dynamic>);
+    } catch (e) {
+      throw Exception('Gagal mengunggah bukti pembayaran: ${e.toString().replaceFirst('Exception: ', '')}');
     }
   }
 }

@@ -279,6 +279,25 @@ class _NavItemState extends State<_NavItem>
       );
     }
 
+    final activeBgColors = [
+      const Color(0xFFEFF6FF), // Soft Blue
+      const Color(0xFFECFDF5), // Soft Green
+      Colors.transparent,      // Action
+      const Color(0xFFFEF3C7), // Soft Amber
+      const Color(0xFFF5F3FF), // Soft Purple
+    ];
+
+    final activeColors = [
+      const Color(0xFF1A56DB), // Vibrant Blue
+      const Color(0xFF059669), // Vibrant Emerald Green
+      AppColors.primaryGreen,  // Action
+      const Color(0xFFD97706), // Vibrant Amber
+      const Color(0xFF7C3AED), // Vibrant Purple
+    ];
+
+    final activeBg = widget.index < activeBgColors.length ? activeBgColors[widget.index] : AppColors.primaryLight;
+    final activeColor = widget.index < activeColors.length ? activeColors[widget.index] : AppColors.primaryGreen;
+
     // ── Regular item ──────────────────────────────────────────────────────
     return GestureDetector(
       onTap: _handleTap,
@@ -290,7 +309,7 @@ class _NavItemState extends State<_NavItem>
           curve: Curves.easeOutCubic,
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
           decoration: BoxDecoration(
-            color: active ? AppColors.primaryLight : Colors.transparent,
+            color: active ? activeBg : Colors.transparent,
             borderRadius: BorderRadius.circular(16),
           ),
           child: Column(
@@ -310,7 +329,7 @@ class _NavItemState extends State<_NavItem>
                   key: ValueKey<bool>(active),
                   size: active ? 24 : 22,
                   color: active
-                      ? AppColors.primaryGreen
+                      ? activeColor
                       : AppColors.textSecondary,
                 ),
               ),
@@ -322,7 +341,7 @@ class _NavItemState extends State<_NavItem>
                 width:  active ? 20 : 0,
                 height: active ? 3  : 0,
                 decoration: BoxDecoration(
-                  color: AppColors.primaryGreen,
+                  color: activeColor,
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -332,7 +351,7 @@ class _NavItemState extends State<_NavItem>
                   fontSize: 10,
                   fontWeight: active ? FontWeight.w700 : FontWeight.w400,
                   color: active
-                      ? AppColors.primaryGreen
+                      ? activeColor
                       : AppColors.textSecondary,
                 ),
                 child: Text(widget.label),

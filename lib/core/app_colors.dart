@@ -20,7 +20,7 @@ class AppColors {
   static const Color statusKering   = Color(0xFFF59E0B); // amber   — kering
   static const Color statusSetrika  = Color(0xFFF97316); // orange  — setrika
   static const Color statusSelesai  = Color(0xFF10B981); // emerald — selesai
-  static const Color statusDiambil  = Color(0xFF6B7280); // gray    — diambil
+  static const Color statusDiambil  = Color(0xFF059669); // deep emerald — diambil
 
   // ── Helpers ───────────────────────────────────────────────────────────────
   static Color statusColor(String status) {

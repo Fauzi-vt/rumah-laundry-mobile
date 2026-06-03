@@ -2,8 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:provider/provider.dart';
 import '../../../core/app_colors.dart';
 import '../../../data/models/transaction_model.dart';
+import '../../../providers/dashboard_provider.dart';
+import '../../../core/api_constants.dart';
 
 class TransactionDetailScreen extends StatefulWidget {
   final TransactionModel transaction;
@@ -19,6 +23,9 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen>
   late AnimationController _ctrl;
   late Animation<double> _fadeAnim;
   late Animation<Offset> _slideAnim;
+  XFile? _selectedImage;
+  Uint8List? _previewBytes;
+  bool _isUploading = false;
 
   @override
   void initState() {
@@ -42,7 +49,8 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen>
 
   @override
   Widget build(BuildContext context) {
-    final trx = widget.transaction;
+    final dash = context.watch<DashboardProvider>();
+    final trx = dash.transactions.firstWhere((t) => t.id == widget.transaction.id, orElse: () => widget.transaction);
     final sc  = AppColors.statusColor(trx.status);
     final sl  = AppColors.statusLabel(trx.status);
 
@@ -272,7 +280,6 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen>
         final done    = i <= currentIdx;
         final active  = i == currentIdx;
         final (_, icon, label) = _steps[i];
-        final sc = done ? AppColors.primaryGreen : AppColors.cardBorder;
 
         return Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -466,22 +473,87 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen>
     );
   }
 
+  Future<void> _pickImage() async {
+    final picker = ImagePicker();
+    final image = await picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 85,
+    );
+    if (image != null) {
+      final bytes = await image.readAsBytes();
+      setState(() {
+        _selectedImage = image;
+        _previewBytes = bytes;
+      });
+    }
+  }
+
+  Future<void> _uploadImage(int transactionId) async {
+    if (_previewBytes == null || _selectedImage == null) return;
+    setState(() {
+      _isUploading = true;
+    });
+
+    final dash = context.read<DashboardProvider>();
+    final err = await dash.uploadPaymentProof(
+      transactionId: transactionId,
+      bytes: _previewBytes!,
+      filename: _selectedImage!.name,
+    );
+
+    if (!mounted) return;
+    setState(() {
+      _isUploading = false;
+    });
+
+    if (err == null) {
+      setState(() {
+        _selectedImage = null;
+        _previewBytes = null;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Bukti pembayaran berhasil diunggah!',
+              style: GoogleFonts.poppins(color: Colors.white)),
+          backgroundColor: AppColors.primaryGreen,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          margin: const EdgeInsets.all(16),
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Gagal mengunggah bukti: $err',
+              style: GoogleFonts.poppins(color: Colors.white)),
+          backgroundColor: Colors.red.shade700,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          margin: const EdgeInsets.all(16),
+        ),
+      );
+    }
+  }
+
   // ── Info Note ─────────────────────────────────────────────────────────────
   Widget _buildInfoNote(TransactionModel trx) {
     if (trx.status != 'baru') return const SizedBox.shrink();
 
     final isTransfer = trx.paymentMethod == 'transfer';
+    final hasProof = trx.paymentProofUrl != null;
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: isTransfer ? AppColors.primaryLight : Colors.amber.shade50,
+          color: isTransfer 
+              ? (hasProof ? const Color(0xFFECFDF5) : AppColors.primaryLight) 
+              : Colors.amber.shade50,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
               color: isTransfer
-                  ? AppColors.primaryMid.withOpacity(0.3)
+                  ? (hasProof ? const Color(0xFFA7F3D0) : AppColors.primaryMid.withOpacity(0.3))
                   : Colors.amber.shade200),
         ),
         child: Column(
@@ -491,23 +563,23 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen>
               children: [
                 Icon(
                   isTransfer
-                      ? Icons.account_balance_rounded
+                      ? (hasProof ? Icons.check_circle_rounded : Icons.account_balance_rounded)
                       : Icons.info_outline_rounded,
                   color: isTransfer
-                      ? AppColors.primaryGreen
+                      ? (hasProof ? const Color(0xFF059669) : AppColors.primaryGreen)
                       : Colors.amber.shade700,
                   size: 20,
                 ),
                 const SizedBox(width: 10),
                 Text(
                   isTransfer
-                      ? 'Instruksi Transfer'
+                      ? (hasProof ? 'Bukti Pembayaran Terunggah' : 'Instruksi Transfer')
                       : 'Pembayaran di Kasir',
                   style: GoogleFonts.poppins(
                     fontSize: 14,
                     fontWeight: FontWeight.w700,
                     color: isTransfer
-                        ? AppColors.primaryGreen
+                        ? (hasProof ? const Color(0xFF047857) : AppColors.primaryGreen)
                         : Colors.amber.shade900,
                   ),
                 ),
@@ -515,79 +587,165 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen>
             ),
             const SizedBox(height: 12),
             if (isTransfer) ...[
-              Text(
-                'Silakan transfer ke rekening berikut:',
-                style: GoogleFonts.poppins(
-                    fontSize: 12, color: AppColors.textPrimary),
-              ),
-              const SizedBox(height: 12),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppColors.cardBorder),
+              if (hasProof) ...[
+                Text(
+                  'Bukti transfer Anda telah berhasil dikirim ke sistem. Silakan tunggu verifikasi oleh admin kami.',
+                  style: GoogleFonts.poppins(
+                      fontSize: 12, color: AppColors.textPrimary, height: 1.4),
                 ),
-                child: Row(
-                  children: [
-                    Image.network(
-                        'https://upload.wikimedia.org/wikipedia/commons/thumb/5/5c/Bank_Central_Asia.svg/1200px-Bank_Central_Asia.svg.png',
-                        width: 40,
-                        height: 24,
-                        errorBuilder: (_, __, ___) => const Icon(Icons.account_balance)),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('1234567890',
-                              style: GoogleFonts.poppins(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w700,
-                                  color: AppColors.textPrimary)),
-                          Text('a.n Rumah Laundry',
-                              style: GoogleFonts.poppins(
-                                  fontSize: 11,
-                                  color: AppColors.textSecondary)),
-                        ],
+                const SizedBox(height: 16),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Image.network(
+                    ApiConstants.normalizeUrl(trx.paymentProofUrl)!,
+                    height: 180,
+                    width: double.infinity,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) {
+                      return Container(
+                        height: 100,
+                        color: Colors.grey.shade100,
+                        alignment: Alignment.center,
+                        child: Text(
+                          'Gagal memuat gambar bukti transfer.',
+                          style: GoogleFonts.poppins(fontSize: 11, color: Colors.grey.shade600),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ] else ...[
+                Text(
+                  'Silakan transfer ke rekening berikut:',
+                  style: GoogleFonts.poppins(
+                      fontSize: 12, color: AppColors.textPrimary),
+                ),
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppColors.cardBorder),
+                  ),
+                  child: Row(
+                    children: [
+                      Image.network(
+                          'https://upload.wikimedia.org/wikipedia/commons/thumb/5/5c/Bank_Central_Asia.svg/1200px-Bank_Central_Asia.svg.png',
+                          width: 40,
+                          height: 24,
+                          errorBuilder: (_, __, ___) => const Icon(Icons.account_balance)),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('1234567890',
+                                style: GoogleFonts.poppins(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.textPrimary)),
+                            Text('a.n Rumah Laundry',
+                                style: GoogleFonts.poppins(
+                                    fontSize: 11,
+                                    color: AppColors.textSecondary)),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.copy_rounded,
+                            size: 20, color: AppColors.primaryGreen),
+                        onPressed: () {
+                          Clipboard.setData(const ClipboardData(text: '1234567890'));
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Nomor rekening disalin!',
+                                  style: GoogleFonts.poppins(color: Colors.white)),
+                              backgroundColor: AppColors.primaryGreen,
+                              behavior: SnackBarBehavior.floating,
+                            ),
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+                if (_previewBytes != null) ...[
+                  Text(
+                    'Pratinjau Bukti Transfer:',
+                    style: GoogleFonts.poppins(
+                        fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+                  ),
+                  const SizedBox(height: 8),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: Image.memory(
+                      _previewBytes!,
+                      height: 180,
+                      width: double.infinity,
+                      fit: BoxFit.cover,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: _isUploading ? null : () {
+                            setState(() {
+                              _selectedImage = null;
+                              _previewBytes = null;
+                            });
+                          },
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.red.shade700,
+                            side: BorderSide(color: Colors.red.shade300),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          ),
+                          child: Text('Batal', style: GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.w600)),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: _isUploading ? null : () => _uploadImage(trx.id),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primaryGreen,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          ),
+                          child: _isUploading
+                              ? const SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                )
+                              : Text('Unggah Sekarang', style: GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.w700)),
+                        ),
+                      ),
+                    ],
+                  ),
+                ] else ...[
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: _pickImage,
+                      icon: const Icon(Icons.upload_file_rounded, size: 18, color: Colors.white),
+                      label: Text(
+                        'Pilih & Unggah Bukti Transfer',
+                        style: GoogleFonts.poppins(fontWeight: FontWeight.w700, color: Colors.white, fontSize: 13),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primaryGreen,
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
+                        elevation: 0,
                       ),
                     ),
-                    IconButton(
-                      icon: const Icon(Icons.copy_rounded,
-                          size: 20, color: AppColors.primaryGreen),
-                      onPressed: () {
-                        Clipboard.setData(const ClipboardData(text: '1234567890'));
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('Nomor rekening disalin!',
-                                style: GoogleFonts.poppins(color: Colors.white)),
-                            backgroundColor: AppColors.primaryGreen,
-                            behavior: SnackBarBehavior.floating,
-                          ),
-                        );
-                      },
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 12),
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton.icon(
-                  onPressed: () => _openWhatsApp(),
-                  icon: const Icon(Icons.upload_file_rounded, size: 18),
-                  label: Text(
-                    'Kirim Bukti Transfer via WA',
-                    style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
                   ),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: AppColors.primaryGreen,
-                    side: const BorderSide(color: AppColors.primaryGreen),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
-                  ),
-                ),
-              ),
+                ],
+              ],
             ] else ...[
               Text(
                 'Harap lakukan pembayaran di kasir terdekat atau kepada kurir kami saat penjemputan. '

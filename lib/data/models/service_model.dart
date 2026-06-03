@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/api_constants.dart';
 
 class ServiceModel {
   final int    id;
@@ -7,6 +8,7 @@ class ServiceModel {
   final double price;
   final String unit;
   final String? description;
+  final String? imageUrl;
 
   const ServiceModel({
     required this.id,
@@ -15,6 +17,7 @@ class ServiceModel {
     required this.price,
     required this.unit,
     this.description,
+    this.imageUrl,
   });
 
   factory ServiceModel.fromJson(Map<String, dynamic> j) => ServiceModel(
@@ -24,6 +27,7 @@ class ServiceModel {
         price:       double.parse(j['price'].toString()),
         unit:        j['unit']        as String? ?? 'kg',
         description: j['description'] as String?,
+        imageUrl:    ApiConstants.normalizeUrl(j['image_url'] as String?),
       );
 
   /// Returns an emoji icon that mirrors the backend getIconAttribute()

@@ -21,4 +21,13 @@ class ApiConstants {
 
   // Tracking (Public)
   static String track(String invoiceCode) => '$baseUrl/track/$invoiceCode';
+
+  /// Helper to map localhost/127.0.0.1 to 10.0.2.2 when running on Android Emulator
+  static String? normalizeUrl(String? url) {
+    if (url == null) return null;
+    if (kIsWeb) return url;
+    return url
+        .replaceAll('http://localhost:8000', 'http://10.0.2.2:8000')
+        .replaceAll('http://127.0.0.1:8000', 'http://10.0.2.2:8000');
+  }
 }
