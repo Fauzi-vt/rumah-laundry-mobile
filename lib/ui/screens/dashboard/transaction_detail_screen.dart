@@ -70,7 +70,7 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen>
                 foregroundColor: Colors.white,
                 elevation: 0,
                 flexibleSpace: FlexibleSpaceBar(
-                  background: _buildSuccessBanner(),
+                  background: _buildSuccessBanner(trx),
                 ),
                 title: Text(
                   'Detail Pesanan',
@@ -116,10 +116,10 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen>
                 ),
               ),
 
-              // ── Progress Tracker ──────────────────────────────────────
+              // ── Progress Tracker (Vertical Stepper) ────────────────────
               SliverToBoxAdapter(
                 child: _buildSection(
-                  title: 'Status Pesanan',
+                  title: 'Status Pengerjaan Cucian',
                   child: _buildProgressTracker(trx.status),
                 ),
               ),
@@ -167,7 +167,7 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen>
   }
 
   // ── Success Banner ────────────────────────────────────────────────────────
-  Widget _buildSuccessBanner() {
+  Widget _buildSuccessBanner(TransactionModel trx) {
     return Container(
       decoration: const BoxDecoration(
         gradient: LinearGradient(
@@ -182,18 +182,18 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen>
           children: [
             const SizedBox(height: 48),
             Container(
-              width: 64,
-              height: 64,
+              width: 54,
+              height: 54,
               decoration: BoxDecoration(
                 color: Colors.white.withOpacity(0.2),
                 shape: BoxShape.circle,
               ),
               child: const Icon(Icons.check_circle_rounded,
-                  color: Colors.white, size: 40),
+                  color: Colors.white, size: 36),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 10),
             Text(
-              'Pesanan Berhasil Dibuat!',
+              'Detail Pesanan Aktif',
               style: GoogleFonts.poppins(
                 color: Colors.white,
                 fontSize: 18,
@@ -201,10 +201,11 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen>
               ),
             ),
             Text(
-              'Silakan lakukan pembayaran di kasir',
+              'No. Invoice: ${trx.invoiceCode}',
               style: GoogleFonts.poppins(
                 color: Colors.white70,
-                fontSize: 12,
+                fontSize: 11,
+                letterSpacing: 0.5,
               ),
             ),
           ],
@@ -229,7 +230,7 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen>
           label: 'No. Invoice',
           value: trx.invoiceCode,
           valueStyle: GoogleFonts.poppins(
-            fontSize: 14,
+            fontSize: 13,
             fontWeight: FontWeight.w700,
             color: AppColors.textPrimary,
             letterSpacing: 0.5,
@@ -237,12 +238,12 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen>
         ),
         const _Divider(),
         _InfoRow(
-          label: 'Tanggal',
+          label: 'Tanggal Masuk',
           value: date,
         ),
         const _Divider(),
         _InfoRow(
-          label: 'Status',
+          label: 'Status Pesanan',
           valueWidget: Container(
             padding:
                 const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -253,8 +254,8 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen>
             child: Text(
               sl,
               style: GoogleFonts.poppins(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
                 color: sc,
               ),
             ),
@@ -264,95 +265,158 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen>
     );
   }
 
-  // ── Progress Tracker ──────────────────────────────────────────────────────
+  // ── Progress Tracker (Stepper Vertikal Sesuai Alur) ───────────────────────
   static const _steps = [
-    ('baru',    Icons.receipt_long_rounded,   'Pesanan Dibuat'),
-    ('cuci',    Icons.local_laundry_service_rounded, 'Sedang Dicuci'),
-    ('kering',  Icons.air_rounded,            'Pengeringan'),
-    ('setrika', Icons.iron_rounded,           'Penyetrikaan'),
-    ('selesai', Icons.check_circle_rounded,   'Selesai'),
+    ('baru',    Icons.pending_actions_rounded,        'Menunggu', 'Pesanan masuk & menunggu antrean pengerjaan.'),
+    ('cuci',    Icons.local_laundry_service_rounded,  'Dicuci',   'Pakaian sedang dalam proses pencucian & pembilasan.'),
+    ('proses',  Icons.hourglass_empty_rounded,        'Diproses', 'Pakaian sedang dikeringkan atau sedang disetrika.'),
+    ('selesai', Icons.check_circle_rounded,           'Selesai',  'Pakaian selesai disetrika, dipacking, & siap diambil.'),
+    ('diambil', Icons.shopping_bag_rounded,            'Diambil',  'Pakaian telah diserahkan kembali kepada Anda.'),
   ];
 
   Widget _buildProgressTracker(String status) {
-    final currentIdx = _steps.indexWhere((s) => s.$1 == status.toLowerCase());
+    int currentIdx;
+    switch (status.toLowerCase()) {
+      case 'baru':
+        currentIdx = 0;
+        break;
+      case 'cuci':
+        currentIdx = 1;
+        break;
+      case 'kering':
+      case 'setrika':
+        currentIdx = 2;
+        break;
+      case 'selesai':
+        currentIdx = 3;
+        break;
+      case 'diambil':
+        currentIdx = 4;
+        break;
+      default:
+        currentIdx = 0;
+    }
+
     return Column(
       children: List.generate(_steps.length, (i) {
-        final done    = i <= currentIdx;
-        final active  = i == currentIdx;
-        final (_, icon, label) = _steps[i];
+        final isCompleted = i < currentIdx;
+        final isActive = i == currentIdx;
+        final isPending = i > currentIdx;
+        final (_, icon, title, desc) = _steps[i];
 
         return Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Column(children: [
-              AnimatedContainer(
-                duration: const Duration(milliseconds: 300),
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(
-                  color: done
-                      ? (active
+            Column(
+              children: [
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 300),
+                  width: 32,
+                  height: 32,
+                  decoration: BoxDecoration(
+                    color: isCompleted
+                        ? AppColors.primaryGreen.withOpacity(0.12)
+                        : isActive
+                            ? AppColors.primaryGreen
+                            : Colors.grey.shade100,
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: isActive
                           ? AppColors.primaryGreen
-                          : AppColors.primaryLight)
-                      : AppColors.cardBorder.withOpacity(0.5),
-                  shape: BoxShape.circle,
-                  border: active
-                      ? Border.all(color: AppColors.primaryGreen, width: 2.5)
-                      : null,
+                          : isCompleted
+                              ? AppColors.primaryGreen.withOpacity(0.4)
+                              : AppColors.cardBorder,
+                      width: isActive ? 2.5 : 1,
+                    ),
+                    boxShadow: isActive
+                        ? [
+                            BoxShadow(
+                              color: AppColors.primaryGreen.withOpacity(0.3),
+                              blurRadius: 8,
+                              spreadRadius: 1,
+                              offset: const Offset(0, 3),
+                            )
+                          ]
+                        : null,
+                  ),
+                  child: Icon(
+                    icon,
+                    size: 16,
+                    color: isActive
+                        ? Colors.white
+                        : isCompleted
+                            ? AppColors.primaryGreen
+                            : Colors.grey.shade400,
+                  ),
                 ),
-                child: Icon(
-                  icon,
-                  size: 18,
-                  color: done
-                      ? (active ? Colors.white : AppColors.primaryGreen)
-                      : AppColors.textSecondary,
-                ),
-              ),
-              if (i < _steps.length - 1)
-                Container(
-                  width: 2,
-                  height: 28,
-                  color: i < currentIdx
-                      ? AppColors.primaryGreen
-                      : AppColors.cardBorder,
-                ),
-            ]),
+                if (i < _steps.length - 1)
+                  Container(
+                    width: 2,
+                    height: 36,
+                    color: isCompleted
+                        ? AppColors.primaryGreen
+                        : AppColors.cardBorder,
+                  ),
+              ],
+            ),
             const SizedBox(width: 14),
-            Padding(
-              padding: const EdgeInsets.only(top: 8),
-              child: Text(
-                label,
-                style: GoogleFonts.poppins(
-                  fontSize: 13,
-                  fontWeight:
-                      active ? FontWeight.w700 : FontWeight.w400,
-                  color: done
-                      ? AppColors.textPrimary
-                      : AppColors.textSecondary,
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.only(top: 4, bottom: 8),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Text(
+                          title,
+                          style: GoogleFonts.poppins(
+                            fontSize: 13,
+                            fontWeight: isActive
+                                ? FontWeight.w800
+                                : isCompleted
+                                    ? FontWeight.w700
+                                    : FontWeight.w500,
+                            color: isPending
+                                ? AppColors.textSecondary
+                                : AppColors.textPrimary,
+                          ),
+                        ),
+                        if (isActive) ...[
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: AppColors.accent,
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              'Saat ini',
+                              style: GoogleFonts.poppins(
+                                  fontSize: 8,
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w700),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      desc,
+                      style: GoogleFonts.poppins(
+                        fontSize: 11,
+                        color: isActive 
+                            ? AppColors.textPrimary.withOpacity(0.8) 
+                            : AppColors.textSecondary.withOpacity(0.8),
+                        height: 1.3,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
-            if (active) ...[
-              const SizedBox(width: 8),
-              Padding(
-                padding: const EdgeInsets.only(top: 9),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 6, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: AppColors.primaryGreen,
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Text(
-                    'Saat ini',
-                    style: GoogleFonts.poppins(
-                        fontSize: 9,
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600),
-                  ),
-                ),
-              ),
-            ],
           ],
         );
       }),
@@ -361,18 +425,18 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen>
 
   // ── Delivery & Payment Info ───────────────────────────────────────────────
   Widget _buildDeliveryInfo(TransactionModel trx) {
-    final String delivery = (trx.deliveryType == 'bawa_sendiri') ? 'Bawa Sendiri' : 'Antar Jemput';
-    final String payment = (trx.paymentMethod == 'transfer') ? 'Transfer Bank' : 'Tunai (Cash)';
+    final String delivery = (trx.deliveryType == 'bawa_sendiri') ? 'Bawa Sendiri ke Toko' : 'Layanan Antar Jemput';
+    final String payment = (trx.paymentMethod == 'transfer') ? 'Transfer Bank' : 'Tunai / COD (Cash)';
 
     return Column(
       children: [
         _InfoRow(label: 'Metode Pengiriman', value: delivery),
         const _Divider(),
-        _InfoRow(label: 'Alamat', value: trx.address ?? '-'),
+        _InfoRow(label: 'Alamat Pengiriman', value: trx.address ?? '-'),
         const _Divider(),
-        _InfoRow(label: 'Nomor HP', value: trx.phone ?? '-'),
+        _InfoRow(label: 'Nomor Kontak', value: trx.phone ?? '-'),
         const _Divider(),
-        _InfoRow(label: 'Pembayaran', value: payment),
+        _InfoRow(label: 'Metode Pembayaran', value: payment),
       ],
     );
   }
@@ -388,10 +452,12 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen>
       children: trx.details.asMap().entries.map((entry) {
         final i = entry.key;
         final d = entry.value;
+        
         final sub = d.subtotal.toInt().toString().replaceAllMapped(
             RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.');
         final price = d.price.toInt().toString().replaceAllMapped(
             RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.');
+        
         final qty = d.service.unit == 'kg'
             ? '${d.quantity.toStringAsFixed(1)} ${d.service.unit}'
             : '${d.quantity.toInt()} ${d.service.unit}';
@@ -414,7 +480,7 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen>
                       Text(
                         d.service.name,
                         style: GoogleFonts.poppins(
-                          fontSize: 13,
+                          fontSize: 12.5,
                           fontWeight: FontWeight.w600,
                           color: AppColors.textPrimary,
                         ),
@@ -432,7 +498,7 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen>
                 Text(
                   'Rp $sub',
                   style: GoogleFonts.poppins(
-                    fontSize: 13,
+                    fontSize: 12.5,
                     fontWeight: FontWeight.w700,
                     color: AppColors.textPrimary,
                   ),
@@ -447,16 +513,31 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen>
 
   // ── Payment Summary ───────────────────────────────────────────────────────
   Widget _buildPaymentSummary(TransactionModel trx) {
-    final subtotal = trx.totalPrice.toInt().toString().replaceAllMapped(
+    final subtotalPrice = trx.details.fold(0.0, (sum, d) => sum + d.subtotal);
+    final deliveryFee = trx.deliveryType == 'antar_jemput' ? (trx.totalPrice - subtotalPrice > 0 ? trx.totalPrice - subtotalPrice : 10000.0) : 0.0;
+
+    final formattedSubtotal = subtotalPrice.toInt().toString().replaceAllMapped(
         RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.');
+        
+    final formattedDelivery = deliveryFee.toInt().toString().replaceAllMapped(
+        RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.');
+
     return Column(
       children: [
-        _InfoRow(label: 'Subtotal', value: 'Rp $subtotal'),
-        const _Divider(),
-        _InfoRow(label: 'Biaya Layanan', value: 'Gratis'),
+        _InfoRow(label: 'Subtotal Layanan', value: 'Rp $formattedSubtotal'),
         const _Divider(),
         _InfoRow(
-          label: 'Total',
+          label: 'Biaya Antar-Jemput', 
+          value: trx.deliveryType == 'antar_jemput' ? 'Rp $formattedDelivery' : 'Gratis',
+          valueStyle: GoogleFonts.poppins(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: trx.deliveryType == 'antar_jemput' ? AppColors.accent : AppColors.primaryGreen,
+          ),
+        ),
+        const _Divider(),
+        _InfoRow(
+          label: 'Total Tagihan',
           value: trx.formattedTotal,
           valueStyle: GoogleFonts.poppins(
             fontSize: 16,
@@ -464,7 +545,7 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen>
             color: AppColors.primaryGreen,
           ),
           labelStyle: GoogleFonts.poppins(
-            fontSize: 14,
+            fontSize: 13,
             fontWeight: FontWeight.w700,
             color: AppColors.textPrimary,
           ),
@@ -576,7 +657,7 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen>
                       ? (hasProof ? 'Bukti Pembayaran Terunggah' : 'Instruksi Transfer')
                       : 'Pembayaran di Kasir',
                   style: GoogleFonts.poppins(
-                    fontSize: 14,
+                    fontSize: 13,
                     fontWeight: FontWeight.w700,
                     color: isTransfer
                         ? (hasProof ? const Color(0xFF047857) : AppColors.primaryGreen)
@@ -675,7 +756,7 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen>
                   Text(
                     'Pratinjau Bukti Transfer:',
                     style: GoogleFonts.poppins(
-                        fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+                      fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
                   ),
                   const SizedBox(height: 8),
                   ClipRRect(
@@ -748,8 +829,8 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen>
               ],
             ] else ...[
               Text(
-                'Harap lakukan pembayaran di kasir terdekat atau kepada kurir kami saat penjemputan. '
-                'Tunjukkan nomor invoice kepada petugas.',
+                'Harap lakukan pembayaran tunai di kasir terdekat atau kepada kurir kami saat penjemputan pakaian. '
+                'Tunjukkan nomor invoice di atas kepada petugas.',
                 style: GoogleFonts.poppins(
                   fontSize: 12,
                   color: Colors.amber.shade900,
@@ -808,11 +889,12 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen>
         borderRadius: BorderRadius.circular(18),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withOpacity(0.04),
             blurRadius: 14,
             offset: const Offset(0, 4),
           ),
         ],
+        border: Border.all(color: AppColors.cardBorder, width: 0.8),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -821,7 +903,7 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen>
             Text(
               title,
               style: GoogleFonts.poppins(
-                fontSize: 14,
+                fontSize: 13.5,
                 fontWeight: FontWeight.w700,
                 color: AppColors.textPrimary,
               ),
@@ -837,7 +919,7 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen>
   // ── Bottom Bar ────────────────────────────────────────────────────────────
   Widget _buildBottomBar(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
       decoration: BoxDecoration(
         color: Colors.white,
         boxShadow: [
@@ -862,11 +944,12 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen>
               foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(14)),
+              elevation: 0,
             ),
             onPressed: () {
-              // Pop semua hingga root (DashboardShell)
+              // Bersihkan stack dan arahkan ke halaman utama /home (DashboardShell)
               Navigator.of(context)
-                  .popUntil((route) => route.isFirst);
+                  .pushNamedAndRemoveUntil('/home', (route) => false);
             },
           ),
         ),
@@ -900,14 +983,14 @@ class _InfoRow extends StatelessWidget {
           label,
           style: labelStyle ??
               GoogleFonts.poppins(
-                  fontSize: 13, color: AppColors.textSecondary),
+                  fontSize: 12.5, color: AppColors.textSecondary),
         ),
         valueWidget ??
             Text(
               value ?? '',
               style: valueStyle ??
                   GoogleFonts.poppins(
-                    fontSize: 13,
+                    fontSize: 12.5,
                     fontWeight: FontWeight.w600,
                     color: AppColors.textPrimary,
                   ),

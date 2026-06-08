@@ -239,7 +239,7 @@ class _OrderCard extends StatelessWidget {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      '${d.service.name} × ${d.quantity} ${d.service.unit}',
+                      '${d.service.name} × ${d.service.unit == 'kg' ? d.quantity.toStringAsFixed(1).replaceAll('.0', '') : d.quantity.toInt()} ${d.service.unit}',
                       style: GoogleFonts.poppins(
                           fontSize: 12, color: AppColors.textPrimary)),
                   ),
