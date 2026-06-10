@@ -4,10 +4,13 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../../../core/app_colors.dart';
 import '../../../data/models/transaction_model.dart';
 import '../../../providers/dashboard_provider.dart';
 import '../../../core/api_constants.dart';
+import '../../../data/models/payment_account_model.dart';
+import '../../../data/services/laundry_service.dart';
 
 class TransactionDetailScreen extends StatefulWidget {
   final TransactionModel transaction;
@@ -27,6 +30,10 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen>
   Uint8List? _previewBytes;
   bool _isUploading = false;
 
+  final _laundryService = LaundryService();
+  List<PaymentAccountModel> _paymentAccounts = [];
+  bool _loadingAccounts = true;
+
   @override
   void initState() {
     super.initState();
@@ -39,6 +46,25 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen>
       end: Offset.zero,
     ).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOutCubic));
     _ctrl.forward();
+    _fetchPaymentAccounts();
+  }
+
+  Future<void> _fetchPaymentAccounts() async {
+    try {
+      final accounts = await _laundryService.getPaymentAccounts();
+      if (mounted) {
+        setState(() {
+          _paymentAccounts = accounts;
+          _loadingAccounts = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _loadingAccounts = false;
+        });
+      }
+    }
   }
 
   @override
@@ -185,7 +211,7 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen>
               width: 54,
               height: 54,
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.2),
+                color: Colors.white.withValues(alpha: 0.2),
                 shape: BoxShape.circle,
               ),
               child: const Icon(Icons.check_circle_rounded,
@@ -248,7 +274,7 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen>
             padding:
                 const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(
-              color: sc.withOpacity(0.12),
+              color: sc.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Text(
@@ -315,7 +341,7 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen>
                   height: 32,
                   decoration: BoxDecoration(
                     color: isCompleted
-                        ? AppColors.primaryGreen.withOpacity(0.12)
+                        ? AppColors.primaryGreen.withValues(alpha: 0.12)
                         : isActive
                             ? AppColors.primaryGreen
                             : Colors.grey.shade100,
@@ -324,14 +350,14 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen>
                       color: isActive
                           ? AppColors.primaryGreen
                           : isCompleted
-                              ? AppColors.primaryGreen.withOpacity(0.4)
+                              ? AppColors.primaryGreen.withValues(alpha: 0.4)
                               : AppColors.cardBorder,
                       width: isActive ? 2.5 : 1,
                     ),
                     boxShadow: isActive
                         ? [
                             BoxShadow(
-                              color: AppColors.primaryGreen.withOpacity(0.3),
+                              color: AppColors.primaryGreen.withValues(alpha: 0.3),
                               blurRadius: 8,
                               spreadRadius: 1,
                               offset: const Offset(0, 3),
@@ -408,8 +434,8 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen>
                       style: GoogleFonts.poppins(
                         fontSize: 11,
                         color: isActive 
-                            ? AppColors.textPrimary.withOpacity(0.8) 
-                            : AppColors.textSecondary.withOpacity(0.8),
+                            ? AppColors.textPrimary.withValues(alpha: 0.8) 
+                            : AppColors.textSecondary.withValues(alpha: 0.8),
                         height: 1.3,
                       ),
                     ),
@@ -426,7 +452,23 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen>
   // ── Delivery & Payment Info ───────────────────────────────────────────────
   Widget _buildDeliveryInfo(TransactionModel trx) {
     final String delivery = (trx.deliveryType == 'bawa_sendiri') ? 'Bawa Sendiri ke Toko' : 'Layanan Antar Jemput';
-    final String payment = (trx.paymentMethod == 'transfer') ? 'Transfer Bank' : 'Tunai / COD (Cash)';
+    final String payment;
+    if (trx.paymentMethod == null || trx.paymentMethod == 'cash') {
+      payment = 'Tunai / COD (Cash)';
+    } else {
+      final matchedAcc = _paymentAccounts.firstWhere(
+        (a) => a.providerCode == trx.paymentMethod,
+        orElse: () => PaymentAccountModel(
+          id: 0,
+          type: 'bank',
+          providerName: trx.paymentMethod!.toUpperCase(),
+          providerCode: trx.paymentMethod!,
+          accountNumber: '-',
+          accountName: '-',
+        ),
+      );
+      payment = matchedAcc.providerName;
+    }
 
     return Column(
       children: [
@@ -620,21 +662,33 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen>
   Widget _buildInfoNote(TransactionModel trx) {
     if (trx.status != 'baru') return const SizedBox.shrink();
 
-    final isTransfer = trx.paymentMethod == 'transfer';
+    final isNonCash = trx.paymentMethod != null && trx.paymentMethod != 'cash';
     final hasProof = trx.paymentProofUrl != null;
+
+    PaymentAccountModel? matchedAccount;
+    if (isNonCash) {
+      for (final a in _paymentAccounts) {
+        if (a.providerCode == trx.paymentMethod) {
+          matchedAccount = a;
+          break;
+        }
+      }
+    }
+
+    final brandColor = matchedAccount != null ? Color(matchedAccount.brandColorValue) : AppColors.primaryGreen;
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: isTransfer 
-              ? (hasProof ? const Color(0xFFECFDF5) : AppColors.primaryLight) 
+          color: isNonCash 
+              ? (hasProof ? const Color(0xFFECFDF5) : brandColor.withValues(alpha: 0.06)) 
               : Colors.amber.shade50,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-              color: isTransfer
-                  ? (hasProof ? const Color(0xFFA7F3D0) : AppColors.primaryMid.withOpacity(0.3))
+              color: isNonCash
+                  ? (hasProof ? const Color(0xFFA7F3D0) : brandColor.withValues(alpha: 0.3))
                   : Colors.amber.shade200),
         ),
         child: Column(
@@ -643,31 +697,31 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen>
             Row(
               children: [
                 Icon(
-                  isTransfer
-                      ? (hasProof ? Icons.check_circle_rounded : Icons.account_balance_rounded)
+                  isNonCash
+                      ? (hasProof ? Icons.check_circle_rounded : (matchedAccount?.isBank ?? true ? Icons.account_balance_rounded : Icons.phone_android_rounded))
                       : Icons.info_outline_rounded,
-                  color: isTransfer
-                      ? (hasProof ? const Color(0xFF059669) : AppColors.primaryGreen)
+                  color: isNonCash
+                      ? (hasProof ? const Color(0xFF059669) : brandColor)
                       : Colors.amber.shade700,
                   size: 20,
                 ),
                 const SizedBox(width: 10),
                 Text(
-                  isTransfer
-                      ? (hasProof ? 'Bukti Pembayaran Terunggah' : 'Instruksi Transfer')
+                  isNonCash
+                      ? (hasProof ? 'Bukti Pembayaran Terunggah' : 'Instruksi Transfer / E-Wallet')
                       : 'Pembayaran di Kasir',
                   style: GoogleFonts.poppins(
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
-                    color: isTransfer
-                        ? (hasProof ? const Color(0xFF047857) : AppColors.primaryGreen)
+                    color: isNonCash
+                        ? (hasProof ? const Color(0xFF047857) : brandColor)
                         : Colors.amber.shade900,
                   ),
                 ),
               ],
             ),
             const SizedBox(height: 12),
-            if (isTransfer) ...[
+            if (isNonCash) ...[
               if (hasProof) ...[
                 Text(
                   'Bukti transfer Anda telah berhasil dikirim ke sistem. Silakan tunggu verifikasi oleh admin kami.',
@@ -696,61 +750,88 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen>
                   ),
                 ),
               ] else ...[
-                Text(
-                  'Silakan transfer ke rekening berikut:',
-                  style: GoogleFonts.poppins(
-                      fontSize: 12, color: AppColors.textPrimary),
-                ),
-                const SizedBox(height: 12),
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: AppColors.cardBorder),
+                if (_loadingAccounts)
+                  const Center(
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(vertical: 20),
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  )
+                else ...[
+                  Text(
+                    'Silakan transfer / kirim ke rekening/akun berikut:',
+                    style: GoogleFonts.poppins(
+                        fontSize: 12, color: AppColors.textPrimary),
                   ),
-                  child: Row(
-                    children: [
-                      Image.network(
-                          'https://upload.wikimedia.org/wikipedia/commons/thumb/5/5c/Bank_Central_Asia.svg/1200px-Bank_Central_Asia.svg.png',
-                          width: 40,
-                          height: 24,
-                          errorBuilder: (_, __, ___) => const Icon(Icons.account_balance)),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('1234567890',
-                                style: GoogleFonts.poppins(
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w700,
-                                    color: AppColors.textPrimary)),
-                            Text('a.n Rumah Laundry',
-                                style: GoogleFonts.poppins(
-                                    fontSize: 11,
-                                    color: AppColors.textSecondary)),
-                          ],
-                        ),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.copy_rounded,
-                            size: 20, color: AppColors.primaryGreen),
-                        onPressed: () {
-                          Clipboard.setData(const ClipboardData(text: '1234567890'));
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text('Nomor rekening disalin!',
-                                  style: GoogleFonts.poppins(color: Colors.white)),
-                              backgroundColor: AppColors.primaryGreen,
-                              behavior: SnackBarBehavior.floating,
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AppColors.cardBorder),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: brandColor,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            matchedAccount?.providerName ?? trx.paymentMethod!.toUpperCase(),
+                            style: GoogleFonts.poppins(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w900,
+                              color: matchedAccount != null ? Color(matchedAccount.brandTextColorValue) : Colors.white,
+                              letterSpacing: 1,
                             ),
-                          );
-                        },
-                      ),
-                    ],
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                matchedAccount?.accountNumber ?? '-',
+                                style: GoogleFonts.poppins(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.textPrimary,
+                                ),
+                              ),
+                              Text(
+                                'a.n ${matchedAccount?.accountName ?? '-'}',
+                                style: GoogleFonts.poppins(
+                                  fontSize: 11,
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        if (matchedAccount?.accountNumber != null)
+                          IconButton(
+                            icon: Icon(Icons.copy_rounded,
+                                size: 20, color: brandColor),
+                            onPressed: () {
+                              Clipboard.setData(ClipboardData(text: matchedAccount!.accountNumber));
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Salin berhasil!',
+                                      style: GoogleFonts.poppins(color: Colors.white)),
+                                  backgroundColor: brandColor,
+                                  behavior: SnackBarBehavior.floating,
+                                ),
+                              );
+                            },
+                          ),
+                      ],
+                    ),
                   ),
-                ),
+                ],
                 const SizedBox(height: 16),
                 if (_previewBytes != null) ...[
                   Text(
@@ -814,7 +895,7 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen>
                       onPressed: _pickImage,
                       icon: const Icon(Icons.upload_file_rounded, size: 18, color: Colors.white),
                       label: Text(
-                        'Pilih & Unggah Bukti Transfer',
+                        'Pilih & Unggah Bukti Pembayaran',
                         style: GoogleFonts.poppins(fontWeight: FontWeight.w700, color: Colors.white, fontSize: 13),
                       ),
                       style: ElevatedButton.styleFrom(
@@ -849,7 +930,7 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen>
     return FloatingActionButton.extended(
       onPressed: _openWhatsApp,
       backgroundColor: const Color(0xFF25D366), // WhatsApp Green
-      icon: const Icon(Icons.chat_rounded, color: Colors.white, size: 20),
+      icon: const FaIcon(FontAwesomeIcons.whatsapp, color: Colors.white, size: 20),
       label: Text(
         'Chat CS',
         style: GoogleFonts.poppins(
@@ -889,7 +970,7 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen>
         borderRadius: BorderRadius.circular(18),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 14,
             offset: const Offset(0, 4),
           ),
@@ -924,7 +1005,7 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen>
         color: Colors.white,
         boxShadow: [
           BoxShadow(
-              color: Colors.black.withOpacity(0.06),
+              color: Colors.black.withValues(alpha: 0.06),
               blurRadius: 16,
               offset: const Offset(0, -4))
         ],

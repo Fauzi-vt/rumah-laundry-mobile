@@ -108,8 +108,9 @@ class _OrdersTabState extends State<OrdersTab>
               child: ElevatedButton(
                 onPressed: () {
                   if (isAuthError) {
+                    final nav = Navigator.of(context);
                     context.read<AuthProvider>().logout().then((_) {
-                      Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
+                      nav.pushNamedAndRemoveUntil('/login', (route) => false);
                     });
                   } else {
                     context.read<DashboardProvider>().refresh();
@@ -158,7 +159,7 @@ class _OrderList extends StatelessWidget {
     return ListView.separated(
       padding: const EdgeInsets.all(16),
       itemCount: orders.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 10),
+      separatorBuilder: (context, index) => const SizedBox(height: 10),
       itemBuilder: (_, i) => _OrderCard(trx: orders[i]),
     );
   }
@@ -178,8 +179,8 @@ class _OrderCard extends StatelessWidget {
       onTap: () {
         Navigator.of(context).push(
           PageRouteBuilder(
-            pageBuilder: (_, __, ___) => TransactionDetailScreen(transaction: trx),
-            transitionsBuilder: (_, anim, __, child) {
+            pageBuilder: (context, animation, secondaryAnimation) => TransactionDetailScreen(transaction: trx),
+            transitionsBuilder: (context, anim, secondaryAnimation, child) {
               final slide = Tween<Offset>(
                 begin: const Offset(1, 0),
                 end: Offset.zero,
@@ -196,7 +197,7 @@ class _OrderCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: AppColors.cardBorder),
           boxShadow: [BoxShadow(
-              color: Colors.black.withOpacity(0.04),
+              color: Colors.black.withValues(alpha: 0.04),
               blurRadius: 8, offset: const Offset(0, 2))],
         ),
         child: Column(
@@ -212,7 +213,7 @@ class _OrderCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                    color: sc.withOpacity(0.1),
+                    color: sc.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8)),
                 child: Text(sl,
                     style: GoogleFonts.poppins(

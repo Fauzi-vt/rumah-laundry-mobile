@@ -29,7 +29,7 @@ class _OrderTabState extends State<OrderTab> {
 
     await Navigator.of(context).push(
       PageRouteBuilder(
-        pageBuilder: (_, __, ___) => CheckoutScreen(
+        pageBuilder: (context, animation, secondaryAnimation) => CheckoutScreen(
           items: items,
           totalEstimasi: dash.totalCartPrice,
           onCheckoutSuccess: () {
@@ -37,7 +37,7 @@ class _OrderTabState extends State<OrderTab> {
           },
           cartItemCount: dash.cartItemCount,
         ),
-        transitionsBuilder: (_, anim, __, child) {
+        transitionsBuilder: (context, anim, secondaryAnimation, child) {
           final slide = Tween<Offset>(
             begin: const Offset(1, 0),
             end: Offset.zero,
@@ -77,7 +77,7 @@ class _OrderTabState extends State<OrderTab> {
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
+                      color: Colors.white.withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(12)),
                   child: Text('${dash.cartItemCount} item',
                       style: GoogleFonts.poppins(
@@ -213,17 +213,17 @@ class _OrderTabState extends State<OrderTab> {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: AppColors.primaryGreen.withOpacity(0.12),
+            color: AppColors.primaryGreen.withValues(alpha: 0.12),
             blurRadius: 20,
             offset: const Offset(0, 4),
           ),
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 6,
             offset: const Offset(0, 2),
           ),
         ],
-        border: Border.all(color: AppColors.primaryGreen.withOpacity(0.1), width: 0.8),
+        border: Border.all(color: AppColors.primaryGreen.withValues(alpha: 0.1), width: 0.8),
       ),
       child: SafeArea(
         top: false,
@@ -428,7 +428,7 @@ class _Btn extends StatelessWidget {
           boxShadow: filled
               ? [
                   BoxShadow(
-                    color: AppColors.primaryGreen.withOpacity(0.3),
+                    color: AppColors.primaryGreen.withValues(alpha: 0.3),
                     blurRadius: 6,
                     offset: const Offset(0, 2),
                   )

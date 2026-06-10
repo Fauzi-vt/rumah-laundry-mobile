@@ -98,8 +98,9 @@ class HomeTab extends StatelessWidget {
           TextButton(
             onPressed: () {
               if (isAuthError) {
+                final nav = Navigator.of(context);
                 context.read<AuthProvider>().logout().then((_) {
-                  Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
+                  nav.pushNamedAndRemoveUntil('/login', (route) => false);
                 });
               } else {
                 context.read<DashboardProvider>().refresh();
@@ -170,7 +171,7 @@ class HomeTab extends StatelessWidget {
                   width: 40,
                   height: 40,
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.15),
+                    color: Colors.white.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: const Icon(
@@ -392,13 +393,13 @@ class _SummaryCard extends StatelessWidget {
         border: Border.all(color: AppColors.cardBorder, width: 0.8),
         boxShadow: isZero ? null : [
           BoxShadow(
-            color: Colors.black.withOpacity(0.06),
+            color: Colors.black.withValues(alpha: 0.06),
             blurRadius: 14,
             spreadRadius: 0,
             offset: const Offset(0, 4),
           ),
           BoxShadow(
-            color: Colors.black.withOpacity(0.03),
+            color: Colors.black.withValues(alpha: 0.03),
             blurRadius: 4,
             offset: const Offset(0, 1),
           ),
@@ -411,7 +412,7 @@ class _SummaryCard extends StatelessWidget {
             width: 34,
             height: 34,
             decoration: BoxDecoration(
-              color: color.withOpacity(iconBgOpacity),
+              color: color.withValues(alpha: iconBgOpacity),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(icon, color: iconColor, size: 18),
@@ -466,13 +467,13 @@ class _ServiceChip extends StatelessWidget {
           border: Border.all(color: AppColors.cardBorder, width: 0.8),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.06),
+              color: Colors.black.withValues(alpha: 0.06),
               blurRadius: 14,
               spreadRadius: 0,
               offset: const Offset(0, 4),
             ),
             BoxShadow(
-              color: Colors.black.withOpacity(0.03),
+              color: Colors.black.withValues(alpha: 0.03),
               blurRadius: 4,
               offset: const Offset(0, 1),
             ),
@@ -509,7 +510,7 @@ class _ServiceChip extends StatelessWidget {
                                 height: 16,
                                 child: CircularProgressIndicator(
                                   strokeWidth: 2,
-                                  color: AppColors.primaryGreen.withOpacity(0.5),
+                                  color: AppColors.primaryGreen.withValues(alpha: 0.5),
                                 ),
                               ),
                             );
@@ -577,8 +578,8 @@ class _TransactionCard extends StatelessWidget {
       onTap: () {
         Navigator.of(context).push(
           PageRouteBuilder(
-            pageBuilder: (_, __, ___) => TransactionDetailScreen(transaction: trx),
-            transitionsBuilder: (_, anim, __, child) {
+            pageBuilder: (context, animation, secondaryAnimation) => TransactionDetailScreen(transaction: trx),
+            transitionsBuilder: (context, anim, secondaryAnimation, child) {
               final slide = Tween<Offset>(
                 begin: const Offset(1, 0),
                 end: Offset.zero,
@@ -596,13 +597,13 @@ class _TransactionCard extends StatelessWidget {
           border: Border.all(color: AppColors.cardBorder, width: 0.8),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.06),
+              color: Colors.black.withValues(alpha: 0.06),
               blurRadius: 14,
               spreadRadius: 0,
               offset: const Offset(0, 4),
             ),
             BoxShadow(
-              color: Colors.black.withOpacity(0.03),
+              color: Colors.black.withValues(alpha: 0.03),
               blurRadius: 4,
               offset: const Offset(0, 1),
             ),
@@ -614,7 +615,7 @@ class _TransactionCard extends StatelessWidget {
               width: 46,
               height: 46,
               decoration: BoxDecoration(
-                color: sc.withOpacity(0.12),
+                color: sc.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(14),
               ),
               child: Icon(Icons.receipt_long_rounded, color: sc, size: 22),
@@ -651,7 +652,7 @@ class _TransactionCard extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: sc.withOpacity(0.1),
+                    color: sc.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
@@ -695,7 +696,7 @@ class _EmptyOrders extends StatelessWidget {
         border: Border.all(color: AppColors.cardBorder, width: 0.8),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 16,
             offset: const Offset(0, 4),
           ),

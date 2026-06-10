@@ -130,7 +130,7 @@ class _LoginScreenState extends State<LoginScreen>
             borderRadius: BorderRadius.circular(28),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.06),
+                color: Colors.black.withValues(alpha: 0.06),
                 blurRadius: 20,
                 offset: const Offset(0, 8),
               ),
@@ -172,7 +172,7 @@ class _LoginScreenState extends State<LoginScreen>
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.06),
+            color: Colors.black.withValues(alpha: 0.06),
             blurRadius: 20,
             offset: const Offset(0, 4),
           ),
@@ -306,7 +306,7 @@ class _LoginScreenState extends State<LoginScreen>
         prefixIcon:  Icon(icon, color: AppColors.primaryGreen, size: 20),
         suffixIcon:  suffixIcon,
         labelStyle:  GoogleFonts.poppins(color: AppColors.textSecondary, fontSize: 13),
-        hintStyle:   GoogleFonts.poppins(color: AppColors.textSecondary.withOpacity(0.6), fontSize: 13),
+        hintStyle:   GoogleFonts.poppins(color: AppColors.textSecondary.withValues(alpha: 0.6), fontSize: 13),
         filled:      true,
         fillColor:   AppColors.background,
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),

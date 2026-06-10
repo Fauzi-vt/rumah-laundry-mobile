@@ -96,7 +96,7 @@ class AuthService {
         'email': email,
         'password': password,
         'password_confirmation': passwordConfirmation,
-        if (phone != null) 'phone': phone,
+        'phone': ?phone,
       };
 
       final response = await http.post(

@@ -82,7 +82,7 @@ class _LayananTabState extends State<LayananTab> {
               hintText: 'Cari layanan laundry...',
               hintStyle: GoogleFonts.poppins(
                 fontSize: 13,
-                color: AppColors.textSecondary.withOpacity(0.6),
+                color: AppColors.textSecondary.withValues(alpha: 0.6),
               ),
               prefixIcon: const Icon(
                 Icons.search_rounded,
@@ -128,7 +128,7 @@ class _LayananTabState extends State<LayananTab> {
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
               itemCount: categories.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 8),
+              separatorBuilder: (context, index) => const SizedBox(width: 8),
               itemBuilder: (context, index) {
                 final cat = categories[index];
                 final isSelected = (cat == 'Semua' && _selectedCategory == null) ||
@@ -348,7 +348,7 @@ class _ServiceCard extends StatelessWidget {
         border: Border.all(color: AppColors.cardBorder),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 8,
             offset: const Offset(0, 2),
           )
@@ -385,7 +385,7 @@ class _ServiceCard extends StatelessWidget {
                           height: 16,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
-                            color: AppColors.primaryGreen.withOpacity(0.5),
+                            color: AppColors.primaryGreen.withValues(alpha: 0.5),
                           ),
                         ),
                       );

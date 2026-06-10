@@ -5,9 +5,30 @@ import 'auth_service.dart';
 import '../models/service_model.dart';
 import '../models/transaction_model.dart';
 import '../models/user_model.dart';
+import '../models/payment_account_model.dart';
 
 class LaundryService {
   final _authService = AuthService();
+
+  // ── Payment Accounts ──────────────────────────────────────────────────────
+  Future<List<PaymentAccountModel>> getPaymentAccounts() async {
+    try {
+      final response = await http.get(
+        Uri.parse(ApiConstants.paymentAccounts),
+        headers: {'Content-Type': 'application/json'},
+      );
+
+      if (response.statusCode != 200) {
+        throw Exception('Gagal memuat metode pembayaran: Server mengembalikan status ${response.statusCode}');
+      }
+
+      final Map<String, dynamic> body = jsonDecode(response.body);
+      final List list = body['data'] as List? ?? [];
+      return list.map((e) => PaymentAccountModel.fromJson(e as Map<String, dynamic>)).toList();
+    } catch (e) {
+      throw Exception('Gagal memuat metode pembayaran: ${e.toString().replaceFirst('Exception: ', '')}');
+    }
+  }
 
   // ── Services ──────────────────────────────────────────────────────────────
   Future<List<ServiceModel>> getServices() async {

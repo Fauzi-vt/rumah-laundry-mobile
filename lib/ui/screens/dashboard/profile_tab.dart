@@ -7,6 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../core/app_colors.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../providers/dashboard_provider.dart';
+import '../../../data/models/user_model.dart';
 
 class ProfileTab extends StatefulWidget {
   const ProfileTab({super.key});
@@ -147,7 +148,7 @@ class _ProfileTabState extends State<ProfileTab> {
                   children: [
                     CircleAvatar(
                       radius: 40,
-                      backgroundColor: Colors.white.withOpacity(0.2),
+                      backgroundColor: Colors.white.withValues(alpha: 0.2),
                       backgroundImage: _selectedImageBytes != null
                           ? MemoryImage(_selectedImageBytes!)
                           : (user?.avatarUrl != null
@@ -223,7 +224,7 @@ class _ProfileTabState extends State<ProfileTab> {
             borderRadius: BorderRadius.circular(16),
             border: Border.all(color: AppColors.cardBorder),
             boxShadow: [BoxShadow(
-                color: Colors.black.withOpacity(0.04),
+                color: Colors.black.withValues(alpha: 0.04),
                 blurRadius: 8, offset: const Offset(0, 2))]),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -243,7 +244,7 @@ class _ProfileTabState extends State<ProfileTab> {
     );
   }
 
-  Widget _buildInfoSection(user) {
+  Widget _buildInfoSection(UserModel? user) {
     return _Section('Informasi Akun', [
       _InfoRow(icon: Icons.person_outline_rounded,
           label: 'Nama', value: user?.name ?? '-'),
@@ -439,7 +440,7 @@ class _Section extends StatelessWidget {
             borderRadius: BorderRadius.circular(16),
             border: Border.all(color: AppColors.cardBorder),
             boxShadow: [BoxShadow(
-                color: Colors.black.withOpacity(0.04),
+                color: Colors.black.withValues(alpha: 0.04),
                 blurRadius: 8, offset: const Offset(0, 2))]),
         child: Column(
           children: List.generate(children.length, (i) => Column(children: [
