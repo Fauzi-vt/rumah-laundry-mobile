@@ -215,14 +215,35 @@ class LaundryService {
       final response = await http.Response.fromStream(streamedResponse);
 
       if (response.statusCode != 200) {
-        final errorData = jsonDecode(response.body);
-        throw Exception(errorData['message'] ?? 'Gagal mengunggah bukti pembayaran');
+        final json = jsonDecode(response.body);
+        throw Exception(json['message'] ?? 'Gagal mengunggah bukti pembayaran');
       }
 
       final Map<String, dynamic> data = jsonDecode(response.body);
       return TransactionModel.fromJson(data['data'] as Map<String, dynamic>);
     } catch (e) {
       throw Exception('Gagal mengunggah bukti pembayaran: ${e.toString().replaceFirst('Exception: ', '')}');
+    }
+  }
+
+  Future<void> updateFcmToken(String fcmToken) async {
+    try {
+      final token = await _authService.getToken();
+      final response = await http.post(
+        Uri.parse(ApiConstants.updateFcmToken),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({'fcm_token': fcmToken}),
+      );
+
+      if (response.statusCode != 200) {
+        final json = jsonDecode(response.body);
+        throw Exception(json['message'] ?? 'Gagal memperbarui token notifikasi');
+      }
+    } catch (e) {
+      throw Exception('Gagal memperbarui token notifikasi: ${e.toString().replaceFirst('Exception: ', '')}');
     }
   }
 }

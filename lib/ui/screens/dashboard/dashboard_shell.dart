@@ -1,12 +1,17 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/app_colors.dart';
+import '../../../core/notification_helper.dart';
+import '../../../data/models/order_notification.dart';
 import '../../../providers/dashboard_provider.dart';
+import '../../../providers/notification_provider.dart';
 import 'home_tab.dart';
 import 'layanan_tab.dart';
 import 'order_tab.dart';
 import 'orders_tab.dart';
 import 'profile_tab.dart';
+import '../../../core/firebase_helper.dart';
 
 class DashboardShell extends StatefulWidget {
   const DashboardShell({super.key});
@@ -19,6 +24,7 @@ class _DashboardShellState extends State<DashboardShell>
     with TickerProviderStateMixin {
   int _currentIndex  = 0;
   int _previousIndex = 0;
+  Timer? _pollingTimer;
 
   // Buat instance baru tiap rebuild agar AnimatedSwitcher mendeteksi perubahan
   final List<Widget> _tabWidgets = const [
@@ -33,8 +39,47 @@ class _DashboardShellState extends State<DashboardShell>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<DashboardProvider>().load();
+      final dash = context.read<DashboardProvider>();
+      final notif = context.read<NotificationProvider>();
+      // Inject NotificationProvider ke DashboardProvider
+      dash.notificationProvider = notif;
+      dash.load();
+      // Mulai polling tiap 3 detik
+      _startPolling();
+
+      // Setup Firebase Push Notifications (FCM)
+      FirebaseHelper.requestPermissions().then((_) {
+        FirebaseHelper.setupFCMTokenUpdate();
+      });
+      FirebaseHelper.startForegroundListener(context, notif);
     });
+  }
+
+  void _startPolling() {
+    _pollingTimer = Timer.periodic(const Duration(seconds: 3), (_) async {
+      if (!mounted) return;
+      final dash = context.read<DashboardProvider>();
+      final newNotifs = await dash.refresh();
+      _showBanners(newNotifs.cast<OrderNotification>());
+    });
+  }
+
+  void _showBanners(List<OrderNotification> notifications) {
+    if (!mounted || notifications.isEmpty) return;
+    NotificationHelper.showMultipleNotifications(
+      context,
+      notifications,
+      onTap: (_) {
+        // Pindah ke tab Pesanan saat notifikasi di-tap
+        _onTap(3);
+      },
+    );
+  }
+
+  @override
+  void dispose() {
+    _pollingTimer?.cancel();
+    super.dispose();
   }
 
   void _onTap(int i) {
@@ -91,8 +136,17 @@ class _DashboardShellState extends State<DashboardShell>
               _NavItem(icon: Icons.add_circle_rounded,
                   label: 'Order', index: 2, current: _currentIndex, onTap: _onTap,
                   isAction: true),
-              _NavItem(icon: Icons.receipt_long_rounded,
-                  label: 'Pesanan', index: 3, current: _currentIndex, onTap: _onTap),
+              // Tab Pesanan dengan badge notifikasi
+              Consumer<NotificationProvider>(
+                builder: (context, np, child) => _NavItem(
+                  icon: Icons.receipt_long_rounded,
+                  label: 'Pesanan',
+                  index: 3,
+                  current: _currentIndex,
+                  onTap: _onTap,
+                  badgeCount: np.unreadCount,
+                ),
+              ),
               _NavItem(icon: Icons.person_rounded,
                   label: 'Profil', index: 4, current: _currentIndex, onTap: _onTap),
             ],
@@ -180,6 +234,7 @@ class _NavItem extends StatefulWidget {
   final int                index, current;
   final void Function(int) onTap;
   final bool               isAction;
+  final int                badgeCount;
 
   const _NavItem({
     required this.icon,
@@ -188,6 +243,7 @@ class _NavItem extends StatefulWidget {
     required this.current,
     required this.onTap,
     this.isAction = false,
+    this.badgeCount = 0,
   });
 
   @override
@@ -315,7 +371,7 @@ class _NavItemState extends State<_NavItem>
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Icon bounce-in on activation
+              // Icon bounce-in on activation with badge
               AnimatedSwitcher(
                 duration: const Duration(milliseconds: 250),
                 transitionBuilder: (child, anim) => ScaleTransition(
@@ -324,13 +380,47 @@ class _NavItemState extends State<_NavItem>
                   ),
                   child: FadeTransition(opacity: anim, child: child),
                 ),
-                child: Icon(
-                  widget.icon,
+                child: Stack(
                   key: ValueKey<bool>(active),
-                  size: active ? 24 : 22,
-                  color: active
-                      ? activeColor
-                      : AppColors.textSecondary,
+                  clipBehavior: Clip.none,
+                  children: [
+                    Icon(
+                      widget.icon,
+                      size: active ? 24 : 22,
+                      color: active ? activeColor : AppColors.textSecondary,
+                    ),
+                    // Badge merah notifikasi
+                    if (widget.badgeCount > 0)
+                      Positioned(
+                        top: -5,
+                        right: -7,
+                        child: AnimatedScale(
+                          scale: widget.badgeCount > 0 ? 1.0 : 0.0,
+                          duration: const Duration(milliseconds: 300),
+                          curve: Curves.easeOutBack,
+                          child: Container(
+                            padding: const EdgeInsets.all(2),
+                            constraints: const BoxConstraints(
+                              minWidth: 16, minHeight: 16,
+                            ),
+                            decoration: const BoxDecoration(
+                              color: Color(0xFFEF4444),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Text(
+                              widget.badgeCount > 9 ? '9+' : '${widget.badgeCount}',
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 9,
+                                fontWeight: FontWeight.w800,
+                                height: 1,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
               ),
               const SizedBox(height: 3),

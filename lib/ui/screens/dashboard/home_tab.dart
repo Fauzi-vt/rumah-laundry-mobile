@@ -6,7 +6,9 @@ import '../../../data/models/service_model.dart';
 import '../../../data/models/transaction_model.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../providers/dashboard_provider.dart';
+import '../../../providers/notification_provider.dart';
 import 'dashboard_shell.dart';
+import 'notifications_screen.dart';
 import 'transaction_detail_screen.dart';
 
 class HomeTab extends StatelessWidget {
@@ -155,29 +157,63 @@ class HomeTab extends StatelessWidget {
                 ),
               ),
               const Spacer(),
-              InkWell(
-                onTap: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Tidak ada notifikasi baru.', style: GoogleFonts.poppins(color: Colors.white)),
-                      backgroundColor: AppColors.primaryGreen,
-                      behavior: SnackBarBehavior.floating,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                    )
-                  );
-                },
-                borderRadius: BorderRadius.circular(12),
-                child: Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Icon(
-                    Icons.notifications_outlined,
-                    color: Colors.white,
-                    size: 22,
+              // Tombol lonceng dengan badge notifikasi
+              Consumer<NotificationProvider>(
+                builder: (ctx, np, _) => GestureDetector(
+                  onTap: () {
+                    Navigator.of(ctx).push(
+                      MaterialPageRoute(
+                        builder: (_) => const NotificationsScreen(),
+                      ),
+                    );
+                  },
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(
+                          Icons.notifications_outlined,
+                          color: Colors.white,
+                          size: 22,
+                        ),
+                      ),
+                      if (np.unreadCount > 0)
+                        Positioned(
+                          top: -4,
+                          right: -4,
+                          child: AnimatedScale(
+                            scale: np.unreadCount > 0 ? 1.0 : 0.0,
+                            duration: const Duration(milliseconds: 300),
+                            curve: Curves.easeOutBack,
+                            child: Container(
+                              padding: const EdgeInsets.all(3),
+                              constraints: const BoxConstraints(
+                                minWidth: 18, minHeight: 18,
+                              ),
+                              decoration: const BoxDecoration(
+                                color: Color(0xFFEF4444),
+                                shape: BoxShape.circle,
+                              ),
+                              child: Text(
+                                np.unreadCount > 9 ? '9+' : '${np.unreadCount}',
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w800,
+                                  height: 1.1,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
                 ),
               ),

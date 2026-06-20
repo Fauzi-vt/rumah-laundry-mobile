@@ -1,0 +1,10 @@
+appId: com.rumahlaundry.app_v3
+---
+- launchApp
+- tapOn: "Kilat"
+- tapOn: "Checkout"
+- tapOn: "Buat Pesanan"
+- tapOn: "Ya, Pesan"
+- assertVisible: "Detail Pesanan"
+- assertVisible: "INV-"
+

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "280554249007",
+    "project_id": "rumah-laundry-30481",
+    "storage_bucket": "rumah-laundry-30481.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:280554249007:android:91f0d3e41c13c01157dfda",
+        "android_client_info": {
+          "package_name": "com.rumahlaundry.app_v3"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAJzGG4ed9WgKcZls7vr4vK9YU2JlHlr98"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

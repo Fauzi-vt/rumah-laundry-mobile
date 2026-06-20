@@ -1,12 +1,13 @@
 import 'package:flutter/foundation.dart';
 
 class ApiConstants {
-  // Laravel API Configuration
-  // IP 192.168.100.102 adalah IP lokal komputer Anda pada jaringan Wi-Fi.
-  // Pastikan HP dan Laptop terhubung ke Wi-Fi yang sama.
+  // Laravel API Configuration dengan Ngrok
+  // Ganti URL di bawah ini dengan URL ngrok yang aktif
+  static const String ngrokUrl = 'https://spinner-ground-thursday.ngrok-free.dev';
+
   static const String baseUrl = kIsWeb
       ? 'http://127.0.0.1:8000/api'
-      : 'http://192.168.100.102:8000/api';
+      : '$ngrokUrl/api';
 
   // Endpoints
   static const String login = '$baseUrl/login';
@@ -18,18 +19,19 @@ class ApiConstants {
   static const String transactions = '$baseUrl/transactions';
   static const String orders = '$baseUrl/orders';
   static const String paymentAccounts = '$baseUrl/payment-accounts';
-
+  static const String updateFcmToken = '$baseUrl/user/fcm-token';
 
   // Tracking (Public)
   static String track(String invoiceCode) => '$baseUrl/track/$invoiceCode';
 
-  /// Helper to map localhost/127.0.0.1/10.0.2.2 to IP lokal PC (192.168.100.102) ketika diakses dari HP
+  /// Helper untuk mengubah URL gambar/file dari local server Laravel agar mengarah ke Ngrok saat diakses dari HP
   static String? normalizeUrl(String? url) {
     if (url == null) return null;
     if (kIsWeb) return url;
     return url
-        .replaceAll('http://localhost:8000', 'http://192.168.100.102:8000')
-        .replaceAll('http://127.0.0.1:8000', 'http://192.168.100.102:8000')
-        .replaceAll('http://10.0.2.2:8000', 'http://192.168.100.102:8000');
+        .replaceAll('http://localhost:8000', ngrokUrl)
+        .replaceAll('http://127.0.0.1:8000', ngrokUrl)
+        .replaceAll('http://10.0.2.2:8000', ngrokUrl)
+        .replaceAll('http://192.168.100.102:8000', ngrokUrl);
   }
 }

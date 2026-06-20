@@ -3,6 +3,7 @@ import '../data/models/service_model.dart';
 import '../data/models/transaction_model.dart';
 import '../data/models/user_model.dart';
 import '../data/services/laundry_service.dart';
+import 'notification_provider.dart';
 
 enum DashboardStatus { initial, loading, loaded, error }
 
@@ -13,6 +14,9 @@ class DashboardProvider extends ChangeNotifier {
   List<TransactionModel> _transactions = [];
   bool _orderLoading = false;
   bool _profileLoading = false;
+
+  /// Injected dari main.dart — digunakan untuk mendeteksi perubahan status
+  NotificationProvider? notificationProvider;
 
   // Cart state: serviceId -> quantity
   final Map<int, double> _cart = {};
@@ -70,10 +74,16 @@ class DashboardProvider extends ChangeNotifier {
   double get totalSpent => completedOrders.fold(0, (s, t) => s + t.totalPrice);
 
   // ── Load ──────────────────────────────────────────────────────────────────
-  Future<void> load() async {
-    _status = DashboardStatus.loading;
-    _error = null;
-    notifyListeners();
+  Future<List<dynamic>> load({bool detectChanges = false, bool silent = false}) async {
+    if (!silent) {
+      _status = DashboardStatus.loading;
+      _error = null;
+      notifyListeners();
+    }
+
+    // Simpan snapshot status lama sebelum fetch (untuk deteksi perubahan)
+    final oldTransactions = List<TransactionModel>.from(_transactions);
+
     try {
       final svc = LaundryService();
       final results = await Future.wait([
@@ -84,6 +94,16 @@ class DashboardProvider extends ChangeNotifier {
       _transactions = (results[1] as List<TransactionModel>)
         ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
       _status = DashboardStatus.loaded;
+
+      // Deteksi perubahan status jika diminta dan ada data lama
+      if (detectChanges && oldTransactions.isNotEmpty && notificationProvider != null) {
+        final newNotifs = notificationProvider!.checkForStatusChanges(
+          oldTransactions: oldTransactions,
+          newTransactions: _transactions,
+        );
+        notifyListeners();
+        return newNotifs; // Kembalikan notifikasi baru untuk ditampilkan banner
+      }
     } catch (e) {
       final msg = e.toString().replaceFirst('Exception: ', '');
       if (msg == 'UNAUTHORIZED') {
@@ -91,12 +111,15 @@ class DashboardProvider extends ChangeNotifier {
       } else {
         _error = msg;
       }
-      _status = DashboardStatus.error;
+      if (!silent) {
+        _status = DashboardStatus.error;
+      }
     }
     notifyListeners();
+    return [];
   }
 
-  Future<void> refresh() => load();
+  Future<List<dynamic>> refresh({bool silent = true}) => load(detectChanges: true, silent: silent);
 
   // ── Create Order ──────────────────────────────────────────────────────────
   /// Returns error message or null on success

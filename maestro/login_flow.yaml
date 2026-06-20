@@ -1,0 +1,9 @@
+appId: com.rumahlaundry.app_v3
+---
+- launchApp
+- tapOn: "Alamat Email"
+- inputText: "test@example.com"
+- tapOn: "Password"
+- inputText: "password123"
+- tapOn: "Masuk"
+- assertVisible: "Selamat Datang!"

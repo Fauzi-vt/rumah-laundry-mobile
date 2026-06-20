@@ -3,20 +3,24 @@ import 'package:provider/provider.dart';
 
 import 'core/app_theme.dart';
 import 'core/app_colors.dart';
+import 'core/firebase_helper.dart';
 import 'providers/auth_provider.dart';
 import 'providers/dashboard_provider.dart';
+import 'providers/notification_provider.dart';
 import 'ui/screens/auth/login_screen.dart';
 import 'ui/screens/auth/register_screen.dart';
 import 'ui/screens/dashboard/dashboard_shell.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await FirebaseHelper.init();
   
   runApp(
     MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => AuthProvider()),
         ChangeNotifierProvider(create: (_) => DashboardProvider()),
+        ChangeNotifierProvider(create: (_) => NotificationProvider()),
       ],
       child: const RumahLaundryApp(),
     ),

@@ -1,0 +1,17 @@
+appId: com.rumahlaundry.app_v3
+---
+- launchApp
+- tapOn: "Daftar Sekarang"
+- tapOn: "Nama Lengkap"
+- inputText: "Test User"
+- tapOn: "Alamat Email"
+- inputText: "testuser@example.com"
+- tapOn: "Nomor HP (Opsional)"
+- inputText: "08123456789"
+- tapOn: "Password"
+- inputText: "password123"
+- tapOn: "Konfirmasi Password"
+- inputText: "password123"
+- scroll
+- tapOn: "Daftar Sekarang"
+- assertVisible: "Registrasi berhasil! Silakan masuk dengan akun Anda."
